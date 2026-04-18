@@ -6,6 +6,7 @@ export async function askTONIQ(
     stakingAPY?: unknown;
     swapQuote?: unknown;
     walletAddress?: string;
+    tokenComparison?: unknown;
   }
 ): Promise<string> {
   const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
@@ -13,6 +14,17 @@ export async function askTONIQ(
   const systemPrompt = `You are TONIQ, an AI DeFi agent on the TON blockchain.
 You help users understand their portfolio, token prices, and staking yields.
 Be very concise — max 3-4 sentences per response. Always cite specific numbers from the context provided. Never say you don't have data if it exists in the context. If walletAddress is present in context, mention that you can see the user's connected wallet and reference it naturally.
+
+When user asks about their portfolio, provide specific actionable advice in this format:
+1. Current holdings value (use walletBalance from context)
+2. Staking recommendation: how much TON to stake for the current APY %
+3. One specific action they should take today
+
+When tokenComparison is present in context, format your response as:
+📊 [TOKEN1] vs [TOKEN2]:
+Price: $X vs $Y
+[2-3 sentences of analysis: which has better value, use case, or growth potential]
+
 Current live data: ${JSON.stringify(context)}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {

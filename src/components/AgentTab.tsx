@@ -6,12 +6,33 @@ import { askTONIQ } from '../services/gemini';
 import { fetchTopTokens, Token } from '../services/stonfi';
 import { fetchStakingAPY } from '../services/tonstakers';
 import { getSwapQuote } from '../services/omniston';
+import { fetchWalletBalance } from '../services/tonapi';
 
 type StakingData = Awaited<ReturnType<typeof fetchStakingAPY>>;
+
+interface PriceAlert {
+  symbol: string;
+  targetPrice: number;
+  createdAt: number;
+}
 
 interface AgentTabProps {
   initialMessage?: string;
   onClearInitialMessage?: () => void;
+}
+
+function loadAlerts(): PriceAlert[] {
+  try {
+    return JSON.parse(localStorage.getItem('toniq_alerts') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveAlerts(alerts: PriceAlert[]) {
+  try {
+    localStorage.setItem('toniq_alerts', JSON.stringify(alerts));
+  } catch { /* ignore */ }
 }
 
 export default function AgentTab({ initialMessage, onClearInitialMessage }: AgentTabProps) {
@@ -42,12 +63,47 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
     localStorage.removeItem('toniq_chat_history');
   };
 
+  const addAgentMsg = (text: string) =>
+    setMessages(prev => [...prev, { id: Date.now() + Math.random(), sender: 'agent', text }]);
+
+  // Load market data + check price alerts on load
   useEffect(() => {
     Promise.all([fetchTopTokens(), fetchStakingAPY()]).then(([tokens, staking]) => {
       setLiveMarketData(tokens);
       setLiveStakingData(staking);
     });
   }, []);
+
+  // Feature 1: Check price alerts whenever market data updates
+  useEffect(() => {
+    if (!liveMarketData.length) return;
+    const alerts = loadAlerts();
+    if (!alerts.length) return;
+
+    const triggered: PriceAlert[] = [];
+    const remaining: PriceAlert[] = [];
+
+    alerts.forEach(alert => {
+      const token = liveMarketData.find(
+        t => t.symbol.toUpperCase() === alert.symbol.toUpperCase()
+      );
+      const currentPrice = token ? parseFloat(token.dex_price_usd) : NaN;
+      if (!isNaN(currentPrice) && currentPrice >= alert.targetPrice) {
+        triggered.push({ ...alert, targetPrice: alert.targetPrice });
+        // Capture currentPrice for the message
+        const cp = currentPrice;
+        setMessages(prev => [...prev, {
+          id: Date.now() + Math.random(),
+          sender: 'agent',
+          text: `🔔 Alert triggered! ${alert.symbol} has reached $${cp.toFixed(4)} (your target was $${alert.targetPrice.toFixed(2)})`
+        }]);
+      } else {
+        remaining.push(alert);
+      }
+    });
+
+    if (triggered.length) saveAlerts(remaining);
+  }, [liveMarketData]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -78,15 +134,53 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
     setIsTyping(true);
 
     try {
-      const topTokens = (liveMarketData || [])
-        .slice(0, 20)
-        .map((t) => ({
-          symbol: t.symbol,
-          price_usd: t.dex_price_usd,
-          name: t.display_name
-        }));
+      // ── Feature 1: Price Alert ──────────────────────────────────────
+      const alertMatch = text.match(/alert.*(when|if).*?([A-Z]{2,6}).*?\$?([\d.]+)/i);
+      if (alertMatch) {
+        const symbol = alertMatch[2].toUpperCase();
+        const targetPrice = parseFloat(alertMatch[3]);
+        if (symbol && !isNaN(targetPrice)) {
+          const alerts = loadAlerts();
+          alerts.push({ symbol, targetPrice, createdAt: Date.now() });
+          saveAlerts(alerts);
+          addAgentMsg(`✅ Alert set! I'll notify you when ${symbol} reaches $${targetPrice.toFixed(2)}`);
+          setIsTyping(false);
+          return;
+        }
+      }
 
-      // Detect swap intent and fetch live quote
+      // ── Feature 2: Portfolio guard ──────────────────────────────────
+      const portfolioIntent = /\b(my portfolio|portfolio|my holdings|my balance|my assets)\b/i;
+      if (portfolioIntent.test(text) && !wallet) {
+        addAgentMsg("Connect your wallet first to see personalized analysis.");
+        setIsTyping(false);
+        return;
+      }
+
+      let walletBalance = null;
+      if (portfolioIntent.test(text) && wallet) {
+        try {
+          walletBalance = await fetchWalletBalance(wallet.account.address);
+        } catch { /* ignore, context will just be missing */ }
+      }
+
+      // ── Feature 3: Token Comparison ────────────────────────────────
+      let tokenComparison = null;
+      const compareMatch = text.match(/compare\s+(\w+)\s+(vs|and|versus)\s+(\w+)/i);
+      if (compareMatch) {
+        const sym1 = compareMatch[1].toUpperCase();
+        const sym2 = compareMatch[3].toUpperCase();
+        const t1 = liveMarketData.find(t => t.symbol.toUpperCase() === sym1);
+        const t2 = liveMarketData.find(t => t.symbol.toUpperCase() === sym2);
+        if (t1 && t2) {
+          tokenComparison = {
+            token1: { symbol: t1.symbol, price_usd: t1.dex_price_usd, name: t1.display_name },
+            token2: { symbol: t2.symbol, price_usd: t2.dex_price_usd, name: t2.display_name },
+          };
+        }
+      }
+
+      // ── Swap quote ─────────────────────────────────────────────────
       let swapQuote = null;
       const swapKeywords = /\b(swap|exchange|convert|trade)\b/i;
       if (swapKeywords.test(text)) {
@@ -102,11 +196,17 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
         }
       }
 
+      const topTokens = (liveMarketData || [])
+        .slice(0, 20)
+        .map(t => ({ symbol: t.symbol, price_usd: t.dex_price_usd, name: t.display_name }));
+
       const ctx = {
         prices: topTokens,
         stakingAPY: liveStakingData,
         swapQuote,
+        ...(walletBalance ? { walletBalance } : {}),
         ...(wallet ? { walletAddress: wallet.account.address } : {}),
+        ...(tokenComparison ? { tokenComparison } : {}),
       };
       console.log('context being sent:', ctx);
       const reply = await askTONIQ(text, ctx);
