@@ -29,7 +29,11 @@ function mapAction(type: string): { label: string; Icon: IconComponent; color: s
   return { label: type.replace(/([A-Z])/g, ' $1').trim() || 'Activity', Icon: Activity, color: 'text-[#E5E7EB]' };
 }
 
-export default function HomeTab() {
+interface HomeTabProps {
+  onDeFiBriefing: () => void;
+}
+
+export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
@@ -109,6 +113,13 @@ export default function HomeTab() {
           )}
         </div>
       </div>
+
+      {/* DeFi Briefing */}
+      <button
+        onClick={onDeFiBriefing}
+        className="w-full border border-[#7354F2] text-[#7354F2] bg-transparent rounded-[12px] py-3 text-[14px] font-bold transition-all hover:bg-[#7354F2]/10 active:scale-[0.98]">
+        📊 Get DeFi Briefing
+      </button>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-2.5">

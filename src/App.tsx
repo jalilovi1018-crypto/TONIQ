@@ -8,6 +8,7 @@ import EarnTab from './components/EarnTab';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('toniq');
+  const [initialAgentMessage, setInitialAgentMessage] = useState('');
 
   return (
     <div className="flex justify-center min-h-[100dvh] bg-black font-sans text-white items-center sm:py-8">
@@ -23,9 +24,21 @@ export default function App() {
         </div>
 
         <div className="flex-1 overflow-y-auto scroll-smooth no-scrollbar relative" style={{ paddingBottom: '90px' }}>
-          {activeTab === 'home' && <HomeTab />}
+          {activeTab === 'home' && (
+            <HomeTab
+              onDeFiBriefing={() => {
+                setInitialAgentMessage('Give me a DeFi briefing');
+                setActiveTab('toniq');
+              }}
+            />
+          )}
           {activeTab === 'market' && <MarketTab />}
-          {activeTab === 'toniq' && <AgentTab />}
+          {activeTab === 'toniq' && (
+            <AgentTab
+              initialMessage={initialAgentMessage}
+              onClearInitialMessage={() => setInitialAgentMessage('')}
+            />
+          )}
           {activeTab === 'earn' && <EarnTab />}
         </div>
         

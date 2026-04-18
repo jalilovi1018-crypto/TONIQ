@@ -9,7 +9,12 @@ import { getSwapQuote } from '../services/omniston';
 
 type StakingData = Awaited<ReturnType<typeof fetchStakingAPY>>;
 
-export default function AgentTab() {
+interface AgentTabProps {
+  initialMessage?: string;
+  onClearInitialMessage?: () => void;
+}
+
+export default function AgentTab({ initialMessage, onClearInitialMessage }: AgentTabProps) {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [liveMarketData, setLiveMarketData] = useState<Token[]>([]);
@@ -33,6 +38,16 @@ export default function AgentTab() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    if (!initialMessage) return;
+    const timer = setTimeout(() => {
+      handleSend(initialMessage);
+      onClearInitialMessage?.();
+    }, 500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMessage]);
 
   const handleSend = async (text = inputText) => {
     if (!text.trim()) return;
