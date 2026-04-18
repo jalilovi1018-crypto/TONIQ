@@ -138,6 +138,16 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
           </div>
         )}
 
+        {/* Welcome card – shown only before any messages */}
+        {messages.length === 0 && !isTyping && (
+          <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4">
+            <p className="text-[14px] text-[#E5E7EB] leading-relaxed">
+              👋 Hi! I'm TONIQ, your AI DeFi agent on TON.<br />
+              I have live market data loaded. Ask me anything!
+            </p>
+          </div>
+        )}
+
         {/* Quick Actions */}
         {!isTyping && (
           <div className="flex flex-wrap gap-2 mt-4">

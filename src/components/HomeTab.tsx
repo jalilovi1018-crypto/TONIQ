@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownRight, Activity, ArrowUp, Coins, Percent, LayoutGrid } from 'lucide-react';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { fetchWalletBalance, fetchTransactions } from '../services/tonapi';
+import { fetchStakingAPY } from '../services/tonstakers';
 
 type WalletBalance = Awaited<ReturnType<typeof fetchWalletBalance>>;
 type TxList = Awaited<ReturnType<typeof fetchTransactions>>;
@@ -40,6 +41,11 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [txList, setTxList] = useState<TxList>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [liveAPY, setLiveAPY] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchStakingAPY().then((d) => setLiveAPY(d.apy));
+  }, []);
 
   useEffect(() => {
     if (!wallet) {
@@ -131,7 +137,9 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
         <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4 flex flex-col items-center justify-center">
           <Percent size={18} className="text-[#7354F2] mb-2" />
           <p className="text-[11px] text-[#6B7280] uppercase tracking-widest text-center mb-1 font-semibold">APY</p>
-          <p className="font-semibold text-[14px] text-[#7354F2] text-center">4.2%</p>
+          <p className="font-semibold text-[14px] text-[#7354F2] text-center">
+            {liveAPY != null ? `${liveAPY.toFixed(1)}%` : '...'}
+          </p>
         </div>
         <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4 flex flex-col items-center justify-center">
           <LayoutGrid size={18} className="text-[#E5E7EB] mb-2" />

@@ -1,5 +1,5 @@
 import { Search, Circle } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import TokenDetail from './TokenDetail';
 import { fetchTopTokens, Token } from '../services/stonfi';
 
@@ -30,6 +30,16 @@ export default function MarketTab() {
   const [tokens, setTokens] = useState<DisplayToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Stable pseudo-random positive/negative per token derived from symbol chars
+  const sparklineDirection = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    tokens.forEach((t) => {
+      const hash = t.symbol.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      map[t.symbol] = hash % 2 === 0;
+    });
+    return map;
+  }, [tokens]);
 
   useEffect(() => {
     fetchTopTokens()
@@ -84,7 +94,7 @@ export default function MarketTab() {
                 return !q || t.symbol.toLowerCase().includes(q) || t.display_name.toLowerCase().includes(q);
               })
               .map((token, index) => {
-              const isPositive = token.change.startsWith('+');
+              const isPositive = sparklineDirection[token.symbol] ?? true;
               const priceNum = parseFloat(token.dex_price_usd);
               const priceDisplay = Number.isFinite(priceNum)
                 ? priceNum < 0.01

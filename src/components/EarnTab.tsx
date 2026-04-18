@@ -37,6 +37,7 @@ export default function EarnTab() {
     axios.get<{ pool_list?: Record<string, unknown>[] }>('https://api.ston.fi/v1/pools?limit=10')
       .then(({ data }) => {
         const list = data.pool_list ?? [];
+        console.log('First pool:', JSON.stringify(list[0]));
         if (!list.length) return;
         const mapped: Pool[] = list.map((p, i) => {
           const sym0 = String(p.token0_symbol ?? p.token0_name ?? '???');
@@ -53,7 +54,9 @@ export default function EarnTab() {
           const [color1, color2] = POOL_COLORS[i % POOL_COLORS.length];
           return { pair: `${sym0} / ${sym1}`, apy: apyStr, tvl: tvlStr, color1, color2 };
         });
-        setPools(mapped);
+        // Fall back to hardcoded if API didn't return token symbols
+        const hasRealSymbols = mapped.some(p => !p.pair.includes('???'));
+        setPools(hasRealSymbols ? mapped : FALLBACK_POOLS);
       })
       .catch(() => { /* keep fallback */ })
       .finally(() => setPoolsLoading(false));
