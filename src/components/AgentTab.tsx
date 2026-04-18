@@ -1,4 +1,4 @@
-import { Send } from 'lucide-react';
+import { Send, MessageSquare, X, Plus, Trash2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useTonWallet } from '@tonconnect/ui-react';
@@ -10,6 +10,21 @@ import { fetchWalletBalance } from '../services/tonapi';
 
 type StakingData = Awaited<ReturnType<typeof fetchStakingAPY>>;
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Message {
+  id: number;
+  sender: string;
+  text: string;
+}
+
+interface Chat {
+  id: string;
+  title: string;
+  messages: Message[];
+  createdAt: number;
+}
+
 interface PriceAlert {
   symbol: string;
   targetPrice: number;
@@ -20,6 +35,8 @@ interface AgentTabProps {
   initialMessage?: string;
   onClearInitialMessage?: () => void;
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function loadAlerts(): PriceAlert[] {
   try {
@@ -35,38 +52,147 @@ function saveAlerts(alerts: PriceAlert[]) {
   } catch { /* ignore */ }
 }
 
+function createDefaultChat(): Chat {
+  return { id: Date.now().toString(), title: 'New Chat', messages: [], createdAt: Date.now() };
+}
+
+function loadPersistedChats(): { chats: Chat[]; activeChatId: string } {
+  try {
+    const raw = localStorage.getItem('toniq_chats');
+    let chats: Chat[] = raw ? JSON.parse(raw) : [];
+
+    // One-time migration from old single-chat storage
+    if (chats.length === 0) {
+      const oldHistory = localStorage.getItem('toniq_chat_history');
+      if (oldHistory) {
+        const oldMsgs: Message[] = JSON.parse(oldHistory);
+        if (oldMsgs.length > 0) {
+          const firstUserMsg = oldMsgs.find(m => m.sender === 'user');
+          const migrated: Chat = {
+            id: Date.now().toString(),
+            title: firstUserMsg ? firstUserMsg.text.slice(0, 30) : 'Previous Chat',
+            messages: oldMsgs,
+            createdAt: Date.now(),
+          };
+          chats = [migrated];
+        }
+      }
+    }
+
+    if (chats.length === 0) {
+      const def = createDefaultChat();
+      return { chats: [def], activeChatId: def.id };
+    }
+
+    const savedId = localStorage.getItem('toniq_active_chat');
+    const activeId = savedId && chats.find(c => c.id === savedId) ? savedId : chats[0].id;
+    return { chats, activeChatId: activeId };
+  } catch {
+    const def = createDefaultChat();
+    return { chats: [def], activeChatId: def.id };
+  }
+}
+
+function formatChatDate(ts: number): string {
+  const date = new Date(ts);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function AgentTab({ initialMessage, onClearInitialMessage }: AgentTabProps) {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [liveMarketData, setLiveMarketData] = useState<Token[]>([]);
   const [liveStakingData, setLiveStakingData] = useState<StakingData | null>(null);
   const wallet = useTonWallet();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<{ id: number; sender: string; text: string }[]>(() => {
-    try {
-      const saved = localStorage.getItem('toniq_chat_history');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Multi-chat state
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string>('');
 
+  // Bootstrap from localStorage (runs once)
   useEffect(() => {
-    try {
-      localStorage.setItem('toniq_chat_history', JSON.stringify(messages));
-    } catch { /* storage full or unavailable */ }
-  }, [messages]);
+    const { chats: loaded, activeChatId: id } = loadPersistedChats();
+    setChats(loaded);
+    setActiveChatId(id);
+  }, []);
 
-  const clearChat = () => {
-    setMessages([]);
-    localStorage.removeItem('toniq_chat_history');
+  // Persist chats – max 20 (drop oldest by createdAt)
+  useEffect(() => {
+    if (!chats.length) return;
+    try {
+      const toSave = chats.length > 20
+        ? [...chats].sort((a, b) => b.createdAt - a.createdAt).slice(0, 20)
+        : chats;
+      localStorage.setItem('toniq_chats', JSON.stringify(toSave));
+    } catch { /* storage full */ }
+  }, [chats]);
+
+  // Persist active chat ID
+  useEffect(() => {
+    if (!activeChatId) return;
+    try { localStorage.setItem('toniq_active_chat', activeChatId); } catch { /* ignore */ }
+  }, [activeChatId]);
+
+  // ── Derived state ──────────────────────────────────────────────────────────
+
+  const activeChat = chats.find(c => c.id === activeChatId);
+  const messages: Message[] = activeChat?.messages ?? [];
+
+  // Mutates messages for the currently active chat only
+  const setMessages = (updater: ((prev: Message[]) => Message[]) | Message[]) => {
+    setChats(prev => prev.map(c => {
+      if (c.id !== activeChatId) return c;
+      const next = typeof updater === 'function' ? updater(c.messages) : updater;
+      return { ...c, messages: next };
+    }));
   };
 
   const addAgentMsg = (text: string) =>
     setMessages(prev => [...prev, { id: Date.now() + Math.random(), sender: 'agent', text }]);
 
-  // Load market data + check price alerts on load
+  // ── Chat management ────────────────────────────────────────────────────────
+
+  const createNewChat = () => {
+    const nc = createDefaultChat();
+    setChats(prev => [nc, ...prev]);
+    setActiveChatId(nc.id);
+    setSidebarOpen(false);
+  };
+
+  const switchChat = (id: string) => {
+    setActiveChatId(id);
+    setSidebarOpen(false);
+  };
+
+  const deleteChat = (id: string) => {
+    setChats(prev => {
+      const updated = prev.filter(c => c.id !== id);
+      if (updated.length === 0) {
+        const def = createDefaultChat();
+        setActiveChatId(def.id);
+        return [def];
+      }
+      if (id === activeChatId) setActiveChatId(updated[0].id);
+      return updated;
+    });
+  };
+
+  const clearCurrentChat = () => {
+    setChats(prev => prev.map(c =>
+      c.id === activeChatId ? { ...c, title: 'New Chat', messages: [] } : c
+    ));
+  };
+
+  // ── Market data + price alerts ─────────────────────────────────────────────
+
   useEffect(() => {
     Promise.all([fetchTopTokens(), fetchStakingAPY()]).then(([tokens, staking]) => {
       setLiveMarketData(tokens);
@@ -74,14 +200,13 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
     });
   }, []);
 
-  // Feature 1: Check price alerts whenever market data updates
   useEffect(() => {
     if (!liveMarketData.length) return;
     const alerts = loadAlerts();
     if (!alerts.length) return;
 
-    const triggered: PriceAlert[] = [];
     const remaining: PriceAlert[] = [];
+    let anyTriggered = false;
 
     alerts.forEach(alert => {
       const token = liveMarketData.find(
@@ -89,8 +214,7 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
       );
       const currentPrice = token ? parseFloat(token.dex_price_usd) : NaN;
       if (!isNaN(currentPrice) && currentPrice >= alert.targetPrice) {
-        triggered.push({ ...alert, targetPrice: alert.targetPrice });
-        // Capture currentPrice for the message
+        anyTriggered = true;
         const cp = currentPrice;
         setMessages(prev => [...prev, {
           id: Date.now() + Math.random(),
@@ -102,39 +226,49 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
       }
     });
 
-    if (triggered.length) saveAlerts(remaining);
+    if (anyTriggered) saveAlerts(remaining);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveMarketData]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // ── Scroll ─────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  // ── Initial message from DeFi Briefing ────────────────────────────────────
+
   useEffect(() => {
-    if (
-      initialMessage &&
-      liveMarketData && liveMarketData.length > 0 &&
-      liveStakingData
-    ) {
+    if (initialMessage && liveMarketData.length > 0 && liveStakingData) {
       handleSend(initialMessage);
       onClearInitialMessage?.();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMessage, liveMarketData, liveStakingData]);
 
+  // ── Send ───────────────────────────────────────────────────────────────────
+
   const handleSend = async (text = inputText) => {
     if (!text.trim()) return;
 
-    const newMsg = { id: Date.now(), sender: 'user', text };
-    setMessages(prev => [...prev, newMsg]);
+    const newMsg: Message = { id: Date.now(), sender: 'user', text };
+
+    // Add user message + auto-title on first message in chat
+    setChats(prev => prev.map(c => {
+      if (c.id !== activeChatId) return c;
+      const isFirst = c.messages.filter(m => m.sender === 'user').length === 0;
+      return {
+        ...c,
+        title: isFirst ? text.slice(0, 30) : c.title,
+        messages: [...c.messages, newMsg],
+      };
+    }));
+
     setInputText('');
     setIsTyping(true);
 
     try {
-      // ── Feature 1: Price Alert ──────────────────────────────────────
+      // ── Price Alert ──────────────────────────────────────────────────────
       const alertMatch = text.match(/alert.*(when|if).*?([A-Z]{2,6}).*?\$?([\d.]+)/i);
       if (alertMatch) {
         const symbol = alertMatch[2].toUpperCase();
@@ -149,22 +283,20 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
         }
       }
 
-      // ── Feature 2: Portfolio guard ──────────────────────────────────
+      // ── Portfolio guard ──────────────────────────────────────────────────
       const portfolioIntent = /\b(my portfolio|portfolio|my holdings|my balance|my assets)\b/i;
       if (portfolioIntent.test(text) && !wallet) {
-        addAgentMsg("Connect your wallet first to see personalized analysis.");
+        addAgentMsg('Connect your wallet first to see personalized analysis.');
         setIsTyping(false);
         return;
       }
 
       let walletBalance = null;
       if (portfolioIntent.test(text) && wallet) {
-        try {
-          walletBalance = await fetchWalletBalance(wallet.account.address);
-        } catch { /* ignore, context will just be missing */ }
+        try { walletBalance = await fetchWalletBalance(wallet.account.address); } catch { /* ignore */ }
       }
 
-      // ── Feature 3: Token Comparison ────────────────────────────────
+      // ── Token Comparison ─────────────────────────────────────────────────
       let tokenComparison = null;
       const compareMatch = text.match(/compare\s+(\w+)\s+(vs|and|versus)\s+(\w+)/i);
       if (compareMatch) {
@@ -180,19 +312,15 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
         }
       }
 
-      // ── Swap quote ─────────────────────────────────────────────────
+      // ── Swap quote ───────────────────────────────────────────────────────
       let swapQuote = null;
-      const swapKeywords = /\b(swap|exchange|convert|trade)\b/i;
-      if (swapKeywords.test(text)) {
-        const match = text.match(/(\d+(?:\.\d+)?)\s+([A-Za-z]+)\s+(?:to|for|into|->)\s+([A-Za-z]+)/i);
-        if (match) {
-          const [, rawAmount, fromSym, toSym] = match;
-          swapQuote = await getSwapQuote(fromSym.toUpperCase(), toSym.toUpperCase(), parseFloat(rawAmount));
+      if (/\b(swap|exchange|convert|trade)\b/i.test(text)) {
+        const m = text.match(/(\d+(?:\.\d+)?)\s+([A-Za-z]+)\s+(?:to|for|into|->)\s+([A-Za-z]+)/i);
+        if (m) {
+          swapQuote = await getSwapQuote(m[2].toUpperCase(), m[3].toUpperCase(), parseFloat(m[1]));
         } else {
-          const symMatch = text.match(/\b([A-Z]{2,6})\b.*\b(to|for)\b.*\b([A-Z]{2,6})\b/i);
-          if (symMatch) {
-            swapQuote = await getSwapQuote(symMatch[1].toUpperCase(), symMatch[3].toUpperCase(), 1);
-          }
+          const sm = text.match(/\b([A-Z]{2,6})\b.*\b(to|for)\b.*\b([A-Z]{2,6})\b/i);
+          if (sm) swapQuote = await getSwapQuote(sm[1].toUpperCase(), sm[3].toUpperCase(), 1);
         }
       }
 
@@ -208,6 +336,7 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
         ...(wallet ? { walletAddress: wallet.account.address } : {}),
         ...(tokenComparison ? { tokenComparison } : {}),
       };
+
       console.log('context being sent:', ctx);
       const reply = await askTONIQ(text, ctx);
       setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'agent', text: reply }]);
@@ -215,27 +344,96 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
         sender: 'agent',
-        text: "Sorry, I couldn't connect right now."
+        text: "Sorry, I couldn't connect right now.",
       }]);
     } finally {
       setIsTyping(false);
     }
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
-    <div className="flex flex-col min-h-full pb-[10px]">
-      {/* Chat header with clear button */}
-      {messages.length > 0 && (
-        <div className="flex justify-end px-5 pt-2">
+    <div className="flex flex-col min-h-full pb-[10px] relative overflow-x-hidden">
+
+      {/* ── Sidebar backdrop ── */}
+      {sidebarOpen && (
+        <div
+          className="absolute inset-0 bg-black/60 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── Sidebar ── */}
+      <div className={`absolute top-0 left-0 h-full w-[75%] bg-[#0D0D1A] z-50 flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+
+        {/* Sidebar header */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-[rgba(255,255,255,0.08)] shrink-0">
+          <span className="text-[16px] font-bold text-[#E5E7EB]">Chats</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={createNewChat}
+              className="flex items-center gap-1.5 bg-[#0180FF] text-white px-3 py-1.5 rounded-[8px] text-[12px] font-bold active:scale-95 transition-transform">
+              <Plus size={13} />
+              New Chat
+            </button>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="w-8 h-8 flex items-center justify-center text-[#6B7280] hover:text-[#E5E7EB] transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Chat list */}
+        <div className="flex-1 overflow-y-auto">
+          {chats.map(chat => (
+            <div
+              key={chat.id}
+              onClick={() => switchChat(chat.id)}
+              className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors border-l-2 ${
+                chat.id === activeChatId
+                  ? 'bg-[#0180FF]/20 border-[#0180FF]'
+                  : 'hover:bg-white/[0.04] border-transparent'
+              }`}>
+              <div className="flex-1 min-w-0 pr-2">
+                <p className="text-[13px] font-semibold text-[#E5E7EB] truncate">{chat.title}</p>
+                <p className="text-[11px] text-[#6B7280] mt-0.5">{formatChatDate(chat.createdAt)}</p>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); deleteChat(chat.id); }}
+                className="text-[#6B7280] hover:text-[#FF4D4D] transition-colors p-1 flex-shrink-0">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Chat header ── */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="w-8 h-8 flex items-center justify-center text-[#6B7280] hover:text-[#E5E7EB] transition-colors">
+          <MessageSquare size={20} />
+        </button>
+        <span className="text-[14px] font-bold text-[#E5E7EB] truncate max-w-[190px]">
+          {activeChat?.title || 'TONIQ'}
+        </span>
+        {messages.length > 0 ? (
           <button
-            onClick={clearChat}
+            onClick={clearCurrentChat}
             className="text-[11px] text-[#6B7280] hover:text-[#E5E7EB] px-2 py-1 transition-colors">
             Clear
           </button>
-        </div>
-      )}
+        ) : (
+          <div className="w-8" />
+        )}
+      </div>
 
-      {/* Chat Messages */}
+      {/* ── Messages ── */}
       <div className="flex-1 p-5 space-y-4">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex w-full ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -249,25 +447,25 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
           </div>
         ))}
 
-        {/* Typing Indicator */}
+        {/* Typing indicator */}
         {isTyping && (
-          <div className="flex w-full justify-start typing-indicator animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="flex w-full justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="flex items-end space-x-2">
               <div className="w-8 h-8 shrink-0 rounded-full bg-gradient-to-tr from-[#0180FF] to-[#7354F2] flex items-center justify-center shadow-[0_0_15px_rgba(1,128,255,0.4)] animate-pulse">
                 <span className="text-white font-bold text-[10px] tracking-wider">AI</span>
               </div>
               <div className="max-w-[85%] px-5 py-4 bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] rounded-bl-[0]">
                 <div className="flex space-x-1.5 items-center h-4">
-                  <div className="w-1.5 h-1.5 bg-[#6B7280] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="w-1.5 h-1.5 bg-[#6B7280] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                  <div className="w-1.5 h-1.5 bg-[#6B7280] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  <div className="w-1.5 h-1.5 bg-[#6B7280] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1.5 h-1.5 bg-[#6B7280] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1.5 h-1.5 bg-[#6B7280] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Welcome card – shown only before any messages */}
+        {/* Welcome card */}
         {messages.length === 0 && !isTyping && (
           <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4">
             <p className="text-[14px] text-[#E5E7EB] leading-relaxed">
@@ -277,7 +475,7 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
           </div>
         )}
 
-        {/* Quick Actions */}
+        {/* Quick actions */}
         {!isTyping && (
           <div className="flex flex-wrap gap-2 mt-4">
             {['TON price', 'Staking APY', 'Swap 10 TON to USDT', 'My portfolio', 'Top tokens'].map(action => (
@@ -294,7 +492,7 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
+      {/* ── Input area ── */}
       <div className="p-4 mt-auto shrink-0 relative z-10 w-full mb-2">
         <div className="relative flex items-center">
           <input
