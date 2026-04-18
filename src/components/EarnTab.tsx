@@ -4,6 +4,13 @@ import { fetchStakingAPY } from '../services/tonstakers';
 
 type StakingData = Awaited<ReturnType<typeof fetchStakingAPY>>;
 
+const COMPOUND_PERIODS = [
+  { label: '1 Month',  months: 1  },
+  { label: '3 Months', months: 3  },
+  { label: '6 Months', months: 6  },
+  { label: '1 Year',   months: 12 },
+];
+
 const POOL_COLORS = [
   ['bg-[#7354F2]', 'bg-[#0180FF]'],
   ['bg-[#0180FF]', 'bg-[#00D395]'],
@@ -125,6 +132,41 @@ export default function EarnTab() {
             >
               Simulate
             </button>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-[rgba(255,255,255,0.08)] my-5 -mx-4 w-[calc(100%+2rem)]"></div>
+
+          {/* Compound Calculator */}
+          <div className="space-y-3">
+            <p className="text-[14px] font-bold text-[#E5E7EB]">Compound Growth</p>
+            <div className="grid grid-cols-2 gap-2">
+              {COMPOUND_PERIODS.map(({ label, months }) => {
+                const earnedTON = amount > 0 && apy > 0
+                  ? amount * (Math.pow(1 + apy / 100 / 12, months) - 1)
+                  : null;
+                const earnedTsTON = earnedTON != null
+                  ? (tstonRate > 0 ? earnedTON / tstonRate : earnedTON)
+                  : null;
+                const earnedUSD = earnedTON != null ? earnedTON * tonPriceUSD : null;
+
+                return (
+                  <div
+                    key={label}
+                    className="bg-[#0A0A0F] border border-[rgba(255,255,255,0.08)] rounded-[12px] p-3">
+                    <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-1.5">
+                      {label}
+                    </p>
+                    <p className="text-[14px] font-bold text-[#3DB1FF] leading-none">
+                      {earnedTsTON != null ? `+${earnedTsTON.toFixed(3)} tsTON` : '—'}
+                    </p>
+                    <p className="text-[11px] text-[#6B7280] mt-1">
+                      {earnedUSD != null ? `$${earnedUSD.toFixed(2)}` : '—'}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
