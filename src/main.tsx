@@ -1,10 +1,13 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { TonConnectUIProvider } from '@tonconnect/ui-react';
 import App from './App.tsx';
 import './index.css';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <TonConnectUIProvider manifestUrl="https://toniq-ten.vercel.app/tonconnect-manifest.json">
+      <App />
+    </TonConnectUIProvider>
+  </React.StrictMode>
 );
