@@ -1,6 +1,11 @@
 export async function askTONIQ(
   userMessage: string,
-  context: { prices?: unknown[]; walletBalance?: unknown; stakingAPY?: unknown }
+  context: {
+    prices?: unknown[];
+    walletBalance?: unknown;
+    stakingAPY?: unknown;
+    swapQuote?: unknown;
+  }
 ): Promise<string> {
   const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
 

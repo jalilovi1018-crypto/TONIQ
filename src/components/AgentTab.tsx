@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { askTONIQ } from '../services/gemini';
 import { fetchTopTokens, Token } from '../services/stonfi';
 import { fetchStakingAPY } from '../services/tonstakers';
+import { getSwapQuote } from '../services/omniston';
 
 type StakingData = Awaited<ReturnType<typeof fetchStakingAPY>>;
 
@@ -47,10 +48,28 @@ export default function AgentTab() {
           price_usd: t.dex_price_usd,
           name: t.display_name
         }));
-      console.log('context being sent:', { prices: topTokens, stakingAPY: liveStakingData });
+
+      // Detect swap intent and fetch live quote
+      let swapQuote = null;
+      const swapKeywords = /\b(swap|exchange|convert|trade)\b/i;
+      if (swapKeywords.test(text)) {
+        const match = text.match(/(\d+(?:\.\d+)?)\s+([A-Za-z]+)\s+(?:to|for|into|->)\s+([A-Za-z]+)/i);
+        if (match) {
+          const [, rawAmount, fromSym, toSym] = match;
+          swapQuote = await getSwapQuote(fromSym.toUpperCase(), toSym.toUpperCase(), parseFloat(rawAmount));
+        } else {
+          const symMatch = text.match(/\b([A-Z]{2,6})\b.*\b(to|for)\b.*\b([A-Z]{2,6})\b/i);
+          if (symMatch) {
+            swapQuote = await getSwapQuote(symMatch[1].toUpperCase(), symMatch[3].toUpperCase(), 1);
+          }
+        }
+      }
+
+      console.log('context being sent:', { prices: topTokens, stakingAPY: liveStakingData, swapQuote });
       const reply = await askTONIQ(text, {
         prices: topTokens,
         stakingAPY: liveStakingData,
+        swapQuote,
       });
       setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'agent', text: reply }]);
     } catch {
