@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { fetchStakingAPY } from '../services/tonstakers';
+import { SkeletonLine } from './Skeleton';
 
 type StakingData = Awaited<ReturnType<typeof fetchStakingAPY>>;
 
@@ -98,7 +99,9 @@ export default function EarnTab() {
             <div className="text-right">
               <p className="text-[11px] text-[#6B7280] uppercase font-bold tracking-widest mb-1.5">APY</p>
               {loading ? (
-                <p className="font-bold text-[#6B7280] text-[18px] leading-none">...</p>
+                <div className="animate-pulse">
+                  <SkeletonLine width="w-14" height="h-6" />
+                </div>
               ) : (
                 <p className="font-bold text-[#3DB1FF] text-[18px] leading-none">{apy.toFixed(1)}%</p>
               )}

@@ -4,6 +4,7 @@ import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { fetchWalletBalance, fetchTransactions } from '../services/tonapi';
 import { fetchStakingAPY } from '../services/tonstakers';
 import { fetchTopTokens } from '../services/stonfi';
+import { SkeletonLine } from './Skeleton';
 
 type WalletBalance = Awaited<ReturnType<typeof fetchWalletBalance>>;
 type TxList = Awaited<ReturnType<typeof fetchTransactions>>;
@@ -63,7 +64,11 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
   const [txList, setTxList] = useState<TxList>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [liveAPY, setLiveAPY] = useState<number | null>(null);
-  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
+  const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('toniq_alerts') || '[]');
+    } catch { return []; }
+  });
   const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
   const [showToast, setShowToast] = useState(false);
 
@@ -71,9 +76,8 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
     fetchStakingAPY().then((d) => setLiveAPY(d.apy));
   }, []);
 
-  // Load alerts + live token prices on mount
+  // Fetch live token prices for alert progress bars
   useEffect(() => {
-    setAlerts(loadAlerts());
     fetchTopTokens().then(tokens => {
       const prices: Record<string, number> = {};
       tokens.forEach(t => {
@@ -122,9 +126,7 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
     } catch { /* ignore */ }
   };
 
-  const portfolioDisplay = loadingData
-    ? '...'
-    : balance
+  const portfolioDisplay = balance
     ? `$${balance.usd_value > 0 ? balance.usd_value.toFixed(2) : (balance.balance * 5.24).toFixed(2)}`
     : '$0.00';
 
@@ -168,12 +170,21 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
       <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4">
         <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-1">Portfolio Value</p>
         <div className="flex flex-col space-y-1">
-          <h2 className="text-[28px] font-bold text-white leading-none tracking-tight">{portfolioDisplay}</h2>
-          {wallet && balance && (
-            <span className="flex items-center text-[#6B7280] font-medium text-[14px]">
-              <ArrowUp size={14} className="mr-0.5" />
-              —
-            </span>
+          {loadingData ? (
+            <div className="space-y-2 animate-pulse pt-1">
+              <SkeletonLine width="w-36" height="h-8" />
+              <SkeletonLine width="w-20" height="h-4" />
+            </div>
+          ) : (
+            <>
+              <h2 className="text-[28px] font-bold text-white leading-none tracking-tight">{portfolioDisplay}</h2>
+              {wallet && balance && (
+                <span className="flex items-center text-[#6B7280] font-medium text-[14px]">
+                  <ArrowUp size={14} className="mr-0.5" />
+                  —
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>

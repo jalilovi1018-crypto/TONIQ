@@ -22,3 +22,19 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Tab transition */
+.tab-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.tab-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms ease, transform 200ms ease;
+  animation: tabFadeIn 200ms ease both;
+}
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

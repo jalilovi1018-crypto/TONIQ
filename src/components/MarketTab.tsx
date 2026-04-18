@@ -2,6 +2,7 @@ import { Search, Circle } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import TokenDetail from './TokenDetail';
 import { fetchTopTokens, Token } from '../services/stonfi';
+import { SkeletonLine } from './Skeleton';
 
 const STABLECOINS = new Set(['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDE']);
 
@@ -52,9 +53,14 @@ export default function MarketTab() {
   }, [tokens]);
 
   useEffect(() => {
-    fetchTopTokens()
-      .then((data) => setTokens(data.map((t) => ({ ...t, change: 'N/A' }))))
-      .finally(() => setLoading(false));
+    (async () => {
+      const [data] = await Promise.all([
+        fetchTopTokens(),
+        new Promise(resolve => setTimeout(resolve, 800)),
+      ]);
+      setTokens(data.map((t) => ({ ...t, change: 'N/A' })));
+      setLoading(false);
+    })();
   }, []);
 
   if (selectedToken) {
@@ -119,7 +125,30 @@ export default function MarketTab() {
         </div>
 
         {loading ? (
-          <p className="text-[#6B7280] text-[14px] text-center mt-8">Loading...</p>
+          <div className="space-y-[20px]">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] px-4 py-5 flex items-center justify-between animate-pulse">
+                {/* Left: avatar + two lines */}
+                <div className="flex items-center space-x-4">
+                  <div className="w-[40px] h-[40px] rounded-full bg-[#2A2A3E] shrink-0" />
+                  <div className="space-y-2">
+                    <SkeletonLine width="w-14" height="h-3.5" />
+                    <SkeletonLine width="w-20" height="h-3" />
+                  </div>
+                </div>
+                {/* Right: sparkline + price lines */}
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-6 bg-[#2A2A3E] rounded-[6px]" />
+                  <div className="flex flex-col items-end space-y-2 w-[72px]">
+                    <SkeletonLine width="w-full" height="h-3.5" />
+                    <SkeletonLine width="w-8" height="h-3" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="space-y-[20px]">
             {tokens

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Settings } from 'lucide-react';
 import BottomNav from './components/BottomNav';
 import HomeTab from './components/HomeTab';
@@ -9,6 +9,12 @@ import EarnTab from './components/EarnTab';
 export default function App() {
   const [activeTab, setActiveTab] = useState('toniq');
   const [initialAgentMessage, setInitialAgentMessage] = useState('');
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Scroll back to top on every tab switch
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [activeTab]);
 
   return (
     <div className="flex justify-center min-h-[100dvh] bg-black font-sans text-white items-center sm:py-8">
@@ -23,7 +29,12 @@ export default function App() {
           <Settings className="text-white opacity-100" size={24} strokeWidth={2} />
         </div>
 
-        <div className="flex-1 overflow-y-auto scroll-smooth no-scrollbar relative" style={{ paddingBottom: '90px' }}>
+        <div
+          key={activeTab}
+          ref={contentRef}
+          className="flex-1 overflow-y-auto scroll-smooth no-scrollbar relative tab-enter-active"
+          style={{ paddingBottom: '90px' }}
+        >
           {activeTab === 'home' && (
             <HomeTab
               onDeFiBriefing={() => {
