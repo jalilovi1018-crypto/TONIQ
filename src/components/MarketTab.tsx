@@ -67,7 +67,7 @@ export default function MarketTab() {
           <p className="text-[#6B7280] text-[14px] text-center mt-8">Loading...</p>
         ) : (
           <div className="space-y-[20px]">
-            {tokens.map((token) => {
+            {tokens.map((token, index) => {
               const isPositive = token.change.startsWith('+');
               const priceNum = parseFloat(token.dex_price_usd);
               const priceDisplay = Number.isFinite(priceNum)
@@ -78,7 +78,7 @@ export default function MarketTab() {
 
               return (
                 <div
-                  key={token.symbol}
+                  key={index}
                   className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] px-4 py-5 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors"
                   onClick={() => setSelectedToken(token)}
                 >

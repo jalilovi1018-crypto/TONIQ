@@ -11,7 +11,7 @@ export async function askTONIQ(
 
   const systemPrompt = `You are TONIQ, an AI DeFi agent on the TON blockchain.
 You help users understand their portfolio, token prices, and staking yields.
-Always be concise, friendly, and use real numbers from the context provided.
+Be very concise — max 3-4 sentences per response. Always cite specific numbers from the context provided. Never say you don't have data if it exists in the context.
 Current live data: ${JSON.stringify(context)}`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {

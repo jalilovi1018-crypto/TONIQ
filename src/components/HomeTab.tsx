@@ -101,10 +101,12 @@ export default function HomeTab() {
         <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-1">Portfolio Value</p>
         <div className="flex flex-col space-y-1">
           <h2 className="text-[28px] font-bold text-white leading-none tracking-tight">{portfolioDisplay}</h2>
-          <span className="flex items-center text-[#22C55E] font-medium text-[14px]">
-            <ArrowUp size={14} className="mr-0.5" />
-            +4.21% ($51.80)
-          </span>
+          {wallet && balance && (
+            <span className="flex items-center text-[#6B7280] font-medium text-[14px]">
+              <ArrowUp size={14} className="mr-0.5" />
+              —
+            </span>
+          )}
         </div>
       </div>
 

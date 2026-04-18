@@ -120,7 +120,7 @@ export default function AgentTab() {
         {/* Quick Actions */}
         {!isTyping && (
           <div className="flex flex-wrap gap-2 mt-4">
-            {['Check my portfolio', 'Simulate a swap', 'Staking APY'].map(action => (
+            {['TON price', 'Staking APY', 'Swap 10 TON to USDT', 'My portfolio', 'Top tokens'].map(action => (
               <button
                 key={action}
                 onClick={() => handleSend(action)}
