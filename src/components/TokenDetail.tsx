@@ -1,5 +1,5 @@
 import { ArrowLeft, Star, Circle } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { fetchTopTokens, Token } from '../services/stonfi';
 
 interface DisplayToken extends Token {
@@ -16,8 +16,54 @@ function truncate(addr: string, head = 8, tail = 6): string {
   return `${addr.slice(0, head)}…${addr.slice(-tail)}`;
 }
 
+// Simple seeded PRNG (LCG)
+function seededRng(seed: number) {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 0x100000000;
+  };
+}
+
+const PERIOD_VOLATILITY: Record<string, number> = {
+  '1H': 0.004, '1D': 0.018, '1W': 0.055, '1M': 0.12, '1Y': 0.32,
+};
+
+function generateChartData(price: number, symbol: string, period: string): number[] {
+  const vol = PERIOD_VOLATILITY[period] ?? 0.018;
+  const seed = symbol.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) *
+    (period.charCodeAt(0) + 7);
+  const rng = seededRng(seed);
+  // Build series ending at current price (walk backwards then reverse)
+  const values: number[] = [price];
+  for (let i = 1; i < 20; i++) {
+    const change = (rng() - 0.5) * 2 * vol;
+    values.unshift(values[0] * (1 + change));
+  }
+  return values; // index 19 = current price
+}
+
+function buildSmoothPath(pts: { x: number; y: number }[]): string {
+  if (pts.length < 2) return '';
+  const tension = 0.35;
+  let d = `M ${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const cp1x = p1.x + (p2.x - p0.x) * tension;
+    const cp1y = p1.y + (p2.y - p0.y) * tension;
+    const cp2x = p2.x - (p3.x - p1.x) * tension;
+    const cp2y = p2.y - (p3.y - p1.y) * tension;
+    d += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+  }
+  return d;
+}
+
 export default function TokenDetail({ token, onBack }: TokenDetailProps) {
   const [fullToken, setFullToken] = useState<Token | null>(null);
+  const [period, setPeriod] = useState('1D');
 
   useEffect(() => {
     fetchTopTokens().then((tokens) => {
@@ -32,7 +78,24 @@ export default function TokenDetail({ token, onBack }: TokenDetailProps) {
     ? priceNum < 0.01 ? `$${priceNum.toFixed(6)}` : `$${priceNum.toFixed(4)}`
     : data.dex_price_usd;
 
-  const isPositive = token.change.startsWith('+');
+  // Generate chart data
+  const { linePath, fillPath, currentY } = useMemo(() => {
+    if (!Number.isFinite(priceNum) || priceNum <= 0) return { linePath: '', fillPath: '', currentY: 20 };
+    const values = generateChartData(priceNum, data.symbol, period);
+    const W = 100; const H = 40; const PAD = 3;
+    const minV = Math.min(...values);
+    const maxV = Math.max(...values);
+    const range = maxV - minV || priceNum * 0.01;
+    const toY = (v: number) => H - PAD - ((v - minV) / range) * (H - PAD * 2);
+    const pts = values.map((v, i) => ({
+      x: (i / (values.length - 1)) * W,
+      y: toY(v),
+    }));
+    const line = buildSmoothPath(pts);
+    const last = pts[pts.length - 1];
+    const fill = `${line} L ${last.x.toFixed(2)},${H} L 0,${H} Z`;
+    return { linePath: line, fillPath: fill, currentY: last.y };
+  }, [priceNum, data.symbol, period]);
 
   const stats = [
     { label: 'Price (USD)',  value: priceDisplay },
@@ -40,6 +103,8 @@ export default function TokenDetail({ token, onBack }: TokenDetailProps) {
     { label: 'Name',         value: data.display_name || '—' },
     { label: 'Contract',     value: data.contract_address ? truncate(data.contract_address) : '—' },
   ];
+
+  const periods = ['1H', '1D', '1W', '1M', '1Y'];
 
   return (
     <div className="p-5 flex flex-col space-y-6">
@@ -72,32 +137,50 @@ export default function TokenDetail({ token, onBack }: TokenDetailProps) {
         </div>
       </div>
 
-      {/* Fake Chart */}
-      <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-5 h-[180px] flex flex-col relative justify-between">
-        <div className="flex justify-between text-[#6B7280] text-[11px] font-bold w-full uppercase tracking-widest absolute top-4 left-0 px-5">
-          <span>Price Graph</span>
-        </div>
-        <div className="flex-1 w-full flex items-end justify-center mt-6">
-          <svg width="100%" height="80%" viewBox="0 0 100 40" preserveAspectRatio="none" className="overflow-visible">
-            <path
-              d={isPositive ? "M0,35 Q20,38 30,25 T60,20 T100,5" : "M0,5 Q20,10 30,25 T60,20 T100,35"}
-              fill="none"
-              stroke={isPositive ? "#00D395" : "#FF4D4D"}
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-            <path
-              d={isPositive ? "M0,35 Q20,38 30,25 T60,20 T100,5 L100,40 L0,40 Z" : "M0,5 Q20,10 30,25 T60,20 T100,35 L100,40 L0,40 Z"}
-              fill={isPositive ? "rgba(0, 211, 149, 0.1)" : "rgba(255, 77, 77, 0.1)"}
+      {/* Chart */}
+      <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-5 flex flex-col">
+        <span className="text-[#6B7280] text-[11px] font-bold uppercase tracking-widest mb-3">Price Graph</span>
+        <div className="w-full h-[80px]">
+          <svg width="100%" height="100%" viewBox="0 0 100 40" preserveAspectRatio="none" className="overflow-visible">
+            <defs>
+              <linearGradient id={`grad-${data.symbol}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#0180FF" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#0180FF" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {fillPath && (
+              <path d={fillPath} fill={`url(#grad-${data.symbol})`} />
+            )}
+            {linePath && (
+              <path d={linePath} fill="none" stroke="#0180FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            )}
+            {/* Current price dashed line */}
+            <line
+              x1="0" y1={currentY.toFixed(2)}
+              x2="100" y2={currentY.toFixed(2)}
+              stroke="#0180FF"
+              strokeWidth="0.5"
+              strokeDasharray="3,2"
+              opacity="0.4"
             />
           </svg>
         </div>
-        <div className="flex justify-between mt-4 border-t border-[rgba(255,255,255,0.05)] pt-3 text-[12px] font-bold tracking-wide">
-          <span className="text-[#6B7280]">1H</span>
-          <span className="text-[#6B7280]">1D</span>
-          <span className="text-[#3DB1FF]">1W</span>
-          <span className="text-[#6B7280]">1M</span>
-          <span className="text-[#6B7280]">1Y</span>
+
+        {/* Period selector */}
+        <div className="flex justify-between mt-4 border-t border-[rgba(255,255,255,0.05)] pt-3">
+          {periods.map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`text-[12px] font-bold tracking-wide px-2 py-0.5 rounded-[6px] transition-colors ${
+                period === p
+                  ? 'text-[#0180FF] bg-[#0180FF]/10'
+                  : 'text-[#6B7280] hover:text-[#E5E7EB]'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -114,7 +197,6 @@ export default function TokenDetail({ token, onBack }: TokenDetailProps) {
         </div>
       </div>
 
-      {/* Bottom spacer for scroll */}
       <div className="h-6"></div>
     </div>
   );

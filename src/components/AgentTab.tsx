@@ -22,7 +22,25 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
   const wallet = useTonWallet();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [messages, setMessages] = useState<{ id: number; sender: string; text: string }[]>([]);
+  const [messages, setMessages] = useState<{ id: number; sender: string; text: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem('toniq_chat_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('toniq_chat_history', JSON.stringify(messages));
+    } catch { /* storage full or unavailable */ }
+  }, [messages]);
+
+  const clearChat = () => {
+    setMessages([]);
+    localStorage.removeItem('toniq_chat_history');
+  };
 
   useEffect(() => {
     Promise.all([fetchTopTokens(), fetchStakingAPY()]).then(([tokens, staking]) => {
@@ -106,6 +124,17 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
 
   return (
     <div className="flex flex-col min-h-full pb-[10px]">
+      {/* Chat header with clear button */}
+      {messages.length > 0 && (
+        <div className="flex justify-end px-5 pt-2">
+          <button
+            onClick={clearChat}
+            className="text-[11px] text-[#6B7280] hover:text-[#E5E7EB] px-2 py-1 transition-colors">
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* Chat Messages */}
       <div className="flex-1 p-5 space-y-4">
         {messages.map((msg) => (
