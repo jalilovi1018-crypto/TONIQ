@@ -7,10 +7,12 @@ export interface Token {
   display_name: string;
   dex_price_usd: string;
   image_url: string;
+  contract_address: string;
 }
 
 interface StonFiAsset extends Partial<Token> {
   dex_price_usd?: string | null;
+  contract_address?: string;
 }
 
 interface StonFiAssetsResponse {
@@ -34,5 +36,6 @@ export async function fetchTopTokens(): Promise<Token[]> {
       display_name: asset.display_name ?? asset.symbol ?? '',
       dex_price_usd: asset.dex_price_usd,
       image_url: asset.image_url ?? '',
+      contract_address: asset.contract_address ?? '',
     }));
 }
