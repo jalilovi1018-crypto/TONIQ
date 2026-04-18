@@ -1,11 +1,32 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpRight, ArrowDownRight, Activity, ArrowUp, Coins, Percent, LayoutGrid } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Activity, ArrowUp, Coins, Percent, LayoutGrid, Trash2 } from 'lucide-react';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { fetchWalletBalance, fetchTransactions } from '../services/tonapi';
 import { fetchStakingAPY } from '../services/tonstakers';
+import { fetchTopTokens } from '../services/stonfi';
 
 type WalletBalance = Awaited<ReturnType<typeof fetchWalletBalance>>;
 type TxList = Awaited<ReturnType<typeof fetchTransactions>>;
+
+interface PriceAlert {
+  symbol: string;
+  targetPrice: number;
+  createdAt: number;
+}
+
+function loadAlerts(): PriceAlert[] {
+  try {
+    return JSON.parse(localStorage.getItem('toniq_alerts') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveAlerts(alerts: PriceAlert[]) {
+  try {
+    localStorage.setItem('toniq_alerts', JSON.stringify(alerts));
+  } catch { /* ignore */ }
+}
 
 function formatAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -42,9 +63,25 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
   const [txList, setTxList] = useState<TxList>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [liveAPY, setLiveAPY] = useState<number | null>(null);
+  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
+  const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
+  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     fetchStakingAPY().then((d) => setLiveAPY(d.apy));
+  }, []);
+
+  // Load alerts + live token prices on mount
+  useEffect(() => {
+    setAlerts(loadAlerts());
+    fetchTopTokens().then(tokens => {
+      const prices: Record<string, number> = {};
+      tokens.forEach(t => {
+        const p = parseFloat(t.dex_price_usd);
+        if (!isNaN(p)) prices[t.symbol.toUpperCase()] = p;
+      });
+      setTokenPrices(prices);
+    });
   }, []);
 
   useEffect(() => {
@@ -63,6 +100,27 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
       .catch(console.error)
       .finally(() => setLoadingData(false));
   }, [wallet]);
+
+  const deleteAlert = (createdAt: number) => {
+    const updated = alerts.filter(a => a.createdAt !== createdAt);
+    setAlerts(updated);
+    saveAlerts(updated);
+  };
+
+  const sharePortfolio = async () => {
+    const tonBal = balance ? balance.balance.toFixed(2) : '0.00';
+    const usdBal = balance
+      ? (balance.usd_value > 0 ? balance.usd_value : balance.balance * 5.24).toFixed(2)
+      : '0.00';
+    const apy = liveAPY != null ? liveAPY.toFixed(1) : '—';
+    const text =
+      `My TON Portfolio via TONIQ\nBalance: ${tonBal} TON ($${usdBal})\nStaking APY: ${apy}%\nCheck it out: https://toniq-ten.vercel.app`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
+    } catch { /* ignore */ }
+  };
 
   const portfolioDisplay = loadingData
     ? '...'
@@ -120,12 +178,19 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
         </div>
       </div>
 
-      {/* DeFi Briefing */}
-      <button
-        onClick={onDeFiBriefing}
-        className="w-full border border-[#7354F2] text-[#7354F2] bg-transparent rounded-[12px] py-3 text-[14px] font-bold transition-all hover:bg-[#7354F2]/10 active:scale-[0.98]">
-        📊 Get DeFi Briefing
-      </button>
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={onDeFiBriefing}
+          className="border border-[#7354F2] text-[#7354F2] bg-transparent rounded-[12px] py-3 text-[13px] font-bold transition-all hover:bg-[#7354F2]/10 active:scale-[0.98]">
+          📊 Get DeFi Briefing
+        </button>
+        <button
+          onClick={sharePortfolio}
+          className="border border-[#0180FF] text-[#0180FF] bg-transparent rounded-[12px] py-3 text-[13px] font-bold transition-all hover:bg-[#0180FF]/10 active:scale-[0.98]">
+          🔗 Share Portfolio
+        </button>
+      </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-2.5">
@@ -206,6 +271,64 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
           )}
         </div>
       </div>
+
+      {/* Active Alerts */}
+      {alerts.length > 0 && (
+        <div>
+          <h3 className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-3 px-1 mt-2">Active Alerts</h3>
+          <div className="space-y-2">
+            {alerts.map(alert => {
+              const currentPrice = tokenPrices[alert.symbol.toUpperCase()] ?? 0;
+              const pct = currentPrice > 0
+                ? Math.min(100, (currentPrice / alert.targetPrice) * 100)
+                : 0;
+              const triggered = currentPrice > 0 && currentPrice >= alert.targetPrice;
+
+              return (
+                <div
+                  key={alert.createdAt}
+                  className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-[14px] text-[#E5E7EB]">
+                      {alert.symbol} → ${alert.targetPrice.toFixed(2)}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        triggered
+                          ? 'bg-[#22C55E]/10 text-[#22C55E]'
+                          : 'bg-[#374151] text-[#6B7280]'
+                      }`}>
+                        {triggered ? '🔔 Triggered!' : 'Watching'}
+                      </span>
+                      <button
+                        onClick={() => deleteAlert(alert.createdAt)}
+                        className="text-[#6B7280] hover:text-[#FF4D4D] transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[12px] text-[#6B7280] mb-2">
+                    Current: ${currentPrice > 0 ? currentPrice.toFixed(4) : '—'}
+                  </p>
+                  <div className="w-full bg-[#374151] rounded-full h-1.5">
+                    <div
+                      className={`h-1.5 rounded-full transition-all ${triggered ? 'bg-[#22C55E]' : 'bg-[#0180FF]'}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {showToast && (
+        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-[#22C55E] text-white px-4 py-2 rounded-full text-[13px] font-bold z-50">
+          📋 Copied to clipboard!
+        </div>
+      )}
     </div>
   );
 }

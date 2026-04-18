@@ -3,6 +3,8 @@ import { useState, useEffect, useMemo } from 'react';
 import TokenDetail from './TokenDetail';
 import { fetchTopTokens, Token } from '../services/stonfi';
 
+const STABLECOINS = new Set(['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDE']);
+
 const Sparkline = ({ isPositive }: { isPositive: boolean }) => {
   const color = isPositive ? '#00D395' : '#FF4D4D';
   const points = isPositive
@@ -41,6 +43,14 @@ export default function MarketTab() {
     return map;
   }, [tokens]);
 
+  // Top 3 non-stablecoin tokens by highest price
+  const trending = useMemo(() => {
+    return [...tokens]
+      .filter(t => !STABLECOINS.has(t.symbol.toUpperCase()))
+      .sort((a, b) => parseFloat(b.dex_price_usd) - parseFloat(a.dex_price_usd))
+      .slice(0, 3);
+  }, [tokens]);
+
   useEffect(() => {
     fetchTopTokens()
       .then((data) => setTokens(data.map((t) => ({ ...t, change: 'N/A' }))))
@@ -56,7 +66,7 @@ export default function MarketTab() {
       <h1 className="text-[24px] font-bold text-white mb-4 leading-none">Market</h1>
 
       {/* Search Bar */}
-      <div className="relative mb-6">
+      <div className="relative mb-4">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           <Search size={18} className="text-[#6B7280]" />
         </div>
@@ -68,6 +78,38 @@ export default function MarketTab() {
           placeholder="Search tokens..."
         />
       </div>
+
+      {/* 🔥 Trending */}
+      {!loading && trending.length > 0 && (
+        <div className="mb-5">
+          <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-2 px-1">🔥 Trending</p>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {trending.map((token) => {
+              const priceNum = parseFloat(token.dex_price_usd);
+              const priceDisplay = Number.isFinite(priceNum)
+                ? priceNum < 0.01
+                  ? `$${priceNum.toFixed(6)}`
+                  : `$${priceNum.toFixed(2)}`
+                : token.dex_price_usd;
+
+              return (
+                <button
+                  key={token.symbol}
+                  onClick={() => setSelectedToken(token)}
+                  className="flex-shrink-0 bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-full px-3 py-1.5 flex items-center gap-2 active:scale-95 transition-transform hover:border-[#0180FF]/40">
+                  <div className="w-5 h-5 rounded-full overflow-hidden bg-[#374151] flex items-center justify-center flex-shrink-0">
+                    {token.image_url
+                      ? <img src={token.image_url} alt={token.symbol} className="w-full h-full object-cover" />
+                      : <Circle size={12} strokeWidth={2} className="text-[#6B7280]" />}
+                  </div>
+                  <span className="text-[13px] font-bold text-[#E5E7EB]">{token.symbol}</span>
+                  <span className="text-[12px] text-[#6B7280]">{priceDisplay}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Token List */}
       <div className="flex-1 pb-4">
