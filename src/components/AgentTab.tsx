@@ -40,14 +40,16 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
   }, [messages, isTyping]);
 
   useEffect(() => {
-    if (!initialMessage) return;
-    const timer = setTimeout(() => {
+    if (
+      initialMessage &&
+      liveMarketData && liveMarketData.length > 0 &&
+      liveStakingData
+    ) {
       handleSend(initialMessage);
       onClearInitialMessage?.();
-    }, 500);
-    return () => clearTimeout(timer);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialMessage]);
+  }, [initialMessage, liveMarketData, liveStakingData]);
 
   const handleSend = async (text = inputText) => {
     if (!text.trim()) return;
