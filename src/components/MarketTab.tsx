@@ -29,6 +29,7 @@ export default function MarketTab() {
   const [selectedToken, setSelectedToken] = useState<DisplayToken | null>(null);
   const [tokens, setTokens] = useState<DisplayToken[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchTopTokens()
@@ -51,6 +52,8 @@ export default function MarketTab() {
         </div>
         <input
           type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] text-[14px] text-[#E5E7EB] rounded-[16px] w-full pl-12 pr-4 py-3 placeholder-[#6B7280] focus:outline-none focus:border-[#0180FF] transition-colors"
           placeholder="Search tokens..."
         />
@@ -67,7 +70,20 @@ export default function MarketTab() {
           <p className="text-[#6B7280] text-[14px] text-center mt-8">Loading...</p>
         ) : (
           <div className="space-y-[20px]">
-            {tokens.map((token, index) => {
+            {tokens
+              .filter((t) => {
+                const q = searchQuery.toLowerCase();
+                return !q || t.symbol.toLowerCase().includes(q) || t.display_name.toLowerCase().includes(q);
+              })
+              .length === 0 && (
+              <p className="text-[#6B7280] text-[14px] text-center mt-8">No tokens found</p>
+            )}
+            {tokens
+              .filter((t) => {
+                const q = searchQuery.toLowerCase();
+                return !q || t.symbol.toLowerCase().includes(q) || t.display_name.toLowerCase().includes(q);
+              })
+              .map((token, index) => {
               const isPositive = token.change.startsWith('+');
               const priceNum = parseFloat(token.dex_price_usd);
               const priceDisplay = Number.isFinite(priceNum)

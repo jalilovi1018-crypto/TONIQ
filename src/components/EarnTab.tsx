@@ -1,17 +1,62 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { fetchStakingAPY } from '../services/tonstakers';
 
 type StakingData = Awaited<ReturnType<typeof fetchStakingAPY>>;
+
+const POOL_COLORS = [
+  ['bg-[#7354F2]', 'bg-[#0180FF]'],
+  ['bg-[#0180FF]', 'bg-[#00D395]'],
+  ['bg-gray-500',  'bg-[#0180FF]'],
+  ['bg-[#00D395]', 'bg-[#0180FF]'],
+  ['bg-[#EAB308]', 'bg-[#0180FF]'],
+];
+
+const FALLBACK_POOLS = [
+  { pair: 'STON / TON',   apy: '24.5%', tvl: '$12.4M', color1: 'bg-[#7354F2]', color2: 'bg-[#0180FF]' },
+  { pair: 'TON / USDT',   apy: '18.2%', tvl: '$8.1M',  color1: 'bg-[#0180FF]', color2: 'bg-[#00D395]' },
+  { pair: 'tsTON / TON',  apy: '12.7%', tvl: '$5.3M',  color1: 'bg-gray-500',  color2: 'bg-[#0180FF]' },
+  { pair: 'USDT / TON',   apy: '15.2%', tvl: '$45.1M', color1: 'bg-[#00D395]', color2: 'bg-[#0180FF]' },
+  { pair: 'NOT / TON',    apy: '45.8%', tvl: '$8.2M',  color1: 'bg-[#EAB308]', color2: 'bg-[#0180FF]' },
+];
+
+interface Pool { pair: string; apy: string; tvl: string; color1: string; color2: string; }
 
 export default function EarnTab() {
   const [stakingData, setStakingData] = useState<StakingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [tonAmount, setTonAmount] = useState('');
+  const [pools, setPools] = useState<Pool[]>(FALLBACK_POOLS);
+  const [poolsLoading, setPoolsLoading] = useState(true);
 
   useEffect(() => {
     fetchStakingAPY()
       .then(setStakingData)
       .finally(() => setLoading(false));
+
+    axios.get<{ pool_list?: Record<string, unknown>[] }>('https://api.ston.fi/v1/pools?limit=10')
+      .then(({ data }) => {
+        const list = data.pool_list ?? [];
+        if (!list.length) return;
+        const mapped: Pool[] = list.map((p, i) => {
+          const sym0 = String(p.token0_symbol ?? p.token0_name ?? '???');
+          const sym1 = String(p.token1_symbol ?? p.token1_name ?? '???');
+          const apyRaw = p.apy_1d ?? p.apy ?? p.apy_30d;
+          const apyStr = apyRaw != null ? `${parseFloat(String(apyRaw)).toFixed(1)}%` : '—';
+          const tvlRaw = p.lp_total_supply_usd ?? p.tvl_usd ?? p.total_value_locked;
+          const tvlNum = tvlRaw != null ? parseFloat(String(tvlRaw)) : null;
+          const tvlStr = tvlNum != null
+            ? tvlNum >= 1e6 ? `$${(tvlNum / 1e6).toFixed(1)}M`
+            : tvlNum >= 1e3 ? `$${(tvlNum / 1e3).toFixed(1)}K`
+            : `$${tvlNum.toFixed(0)}`
+            : '—';
+          const [color1, color2] = POOL_COLORS[i % POOL_COLORS.length];
+          return { pair: `${sym0} / ${sym1}`, apy: apyStr, tvl: tvlStr, color1, color2 };
+        });
+        setPools(mapped);
+      })
+      .catch(() => { /* keep fallback */ })
+      .finally(() => setPoolsLoading(false));
   }, []);
 
   const apy = stakingData?.apy ?? 0;
@@ -84,15 +129,12 @@ export default function EarnTab() {
       {/* Liquidity Pools Section */}
       <div>
         <h2 className="text-[11px] font-bold text-[#6B7280] mb-3 uppercase tracking-widest">Liquidity Pools</h2>
+        {poolsLoading ? (
+          <p className="text-[#6B7280] text-[14px] text-center py-4">Loading pools...</p>
+        ) : (
         <div className="space-y-2.5">
-          {[
-            { pair: 'STON / TON', apy: '24.5%', tvl: '$12.4M', color1: 'bg-[#7354F2]', color2: 'bg-[#0180FF]' },
-            { pair: 'TON / USDT', apy: '18.2%', tvl: '$8.1M', color1: 'bg-[#0180FF]', color2: 'bg-[#00D395]' },
-            { pair: 'tsTON / TON', apy: '12.7%', tvl: '$5.3M', color1: 'bg-gray-500', color2: 'bg-[#0180FF]' },
-            { pair: 'USDT / TON', apy: '15.2%', tvl: '$45.1M', color1: 'bg-[#00D395]', color2: 'bg-[#0180FF]' },
-            { pair: 'NOT / TON', apy: '45.8%', tvl: '$8.2M', color1: 'bg-[#EAB308]', color2: 'bg-[#0180FF]' }
-          ].map((pool) => (
-            <div key={pool.pair} className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors h-[72px]">
+          {pools.map((pool, i) => (
+            <div key={i} className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors h-[72px]">
               <div className="flex items-center space-x-3">
                 <div className="flex -space-x-2">
                   <div className={`w-8 h-8 rounded-full ${pool.color1} border-2 border-[#1A1A2E] z-10 flex items-center justify-center text-white text-[10px] font-bold tracking-tighter`}>
@@ -111,6 +153,7 @@ export default function EarnTab() {
             </div>
           ))}
         </div>
+        )}
       </div>
       <div className="h-4"></div>
     </div>

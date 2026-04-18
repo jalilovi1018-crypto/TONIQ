@@ -1,6 +1,7 @@
 import { Send } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import { useTonWallet } from '@tonconnect/ui-react';
 import { askTONIQ } from '../services/gemini';
 import { fetchTopTokens, Token } from '../services/stonfi';
 import { fetchStakingAPY } from '../services/tonstakers';
@@ -13,6 +14,7 @@ export default function AgentTab() {
   const [isTyping, setIsTyping] = useState(false);
   const [liveMarketData, setLiveMarketData] = useState<Token[]>([]);
   const [liveStakingData, setLiveStakingData] = useState<StakingData | null>(null);
+  const wallet = useTonWallet();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<{ id: number; sender: string; text: string }[]>([]);
@@ -65,12 +67,14 @@ export default function AgentTab() {
         }
       }
 
-      console.log('context being sent:', { prices: topTokens, stakingAPY: liveStakingData, swapQuote });
-      const reply = await askTONIQ(text, {
+      const ctx = {
         prices: topTokens,
         stakingAPY: liveStakingData,
         swapQuote,
-      });
+        ...(wallet ? { walletAddress: wallet.account.address } : {}),
+      };
+      console.log('context being sent:', ctx);
+      const reply = await askTONIQ(text, ctx);
       setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'agent', text: reply }]);
     } catch {
       setMessages(prev => [...prev, {
