@@ -17,7 +17,6 @@ export default function App() {
     () => localStorage.getItem('toniq_display_name') || ''
   );
   const [tonPrice, setTonPrice] = useState<string>('');
-  const [tonImageUrl, setTonImageUrl] = useState<string>('');
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Scroll back to top on every tab switch
@@ -30,10 +29,7 @@ export default function App() {
     const update = () => {
       fetchTopTokens().then(tokens => {
         const ton = tokens.find(t => t.symbol === 'TON');
-        if (ton) {
-          setTonPrice(`$${parseFloat(ton.dex_price_usd).toFixed(2)}`);
-          if (ton.image_url) setTonImageUrl(ton.image_url);
-        }
+        if (ton) setTonPrice(`$${parseFloat(ton.dex_price_usd).toFixed(2)}`);
       }).catch(() => {/* ignore — price chip just stays empty */});
     };
     update();
@@ -88,20 +84,9 @@ export default function App() {
             {/* Right: TON price chip + settings */}
             <div className="flex items-center gap-2">
               {tonPrice && (
-                <div className="flex items-center gap-1.5 bg-[#0180FF]/10 border border-[#0180FF]/20 px-2.5 py-1.5 rounded-[10px]">
-                  {tonImageUrl ? (
-                    <img
-                      src={tonImageUrl}
-                      alt="TON"
-                      className="w-5 h-5 rounded-full shrink-0 object-cover"
-                    />
-                  ) : (
-                    <div className="w-5 h-5 rounded-full bg-[#0180FF] flex items-center justify-center shrink-0">
-                      <span className="text-white text-[9px] font-black leading-none">T</span>
-                    </div>
-                  )}
-                  <span className="text-[12px] font-bold text-[#3DB1FF] leading-none">TON — {tonPrice}</span>
-                  <div className="w-[6px] h-[6px] rounded-full bg-[#00D395] shrink-0 animate-pulse" />
+                <div className="flex flex-col leading-none bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] px-3 py-2 rounded-[10px]">
+                  <span className="text-[12px] font-medium text-[#E5E7EB]">TON — {tonPrice}</span>
+                  <span className="text-[10px] text-[#6B7280] mt-[3px]">market price</span>
                 </div>
               )}
               <button
