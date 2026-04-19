@@ -505,19 +505,37 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
           </div>
         )}
 
-        {/* Quick actions */}
-        {!isTyping && (
-          <div className="flex flex-wrap gap-2 mt-4">
-            {['TON price', 'Staking APY', 'Swap 10 TON to USDT', 'My portfolio', 'Top tokens'].map(action => (
-              <button
-                key={action}
-                onClick={() => handleSend(action)}
-                className="border border-[#0180FF] text-[#0180FF] bg-transparent px-3 py-1.5 rounded-full text-[12px] font-medium active:scale-95 transition-all hover:bg-[#0180FF]/10">
-                {action}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Quick action chips — context-aware after first message */}
+        {!isTyping && (() => {
+          let chips: string[];
+          if (messages.length === 0) {
+            chips = ['TON price', 'Staking APY', 'Swap 10 TON to USDT', 'My portfolio', 'Top tokens'];
+          } else {
+            const lastAgentText = [...messages].reverse().find(m => m.sender === 'agent')?.text?.toLowerCase() ?? '';
+            if (/staking|apy/.test(lastAgentText)) {
+              chips = ['Calculate yield', 'Compare staking options', 'Stake now'];
+            } else if (/swap|price/.test(lastAgentText)) {
+              chips = ['Swap more', 'Check another token', 'Set price alert'];
+            } else if (/portfolio/.test(lastAgentText)) {
+              chips = ['Get full analysis', 'Compare tokens', 'Staking APY'];
+            } else {
+              chips = ['TON price', 'My portfolio', 'Swap TON'];
+            }
+          }
+          const isContextual = messages.length > 0;
+          return (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {chips.map(action => (
+                <button
+                  key={action}
+                  onClick={() => handleSend(action)}
+                  className={`border border-[#0180FF] text-[#0180FF] bg-transparent px-3 py-1.5 rounded-full font-medium active:scale-95 transition-all hover:bg-[#0180FF]/10 ${isContextual ? 'text-[11px]' : 'text-[12px]'}`}>
+                  {action}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
 
         <div ref={messagesEndRef} />
       </div>

@@ -231,11 +231,13 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
       {/* ── PORTFOLIO (merged: total value + token breakdown) ── */}
       <div>
         <h3 className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-3 px-1 mt-2">Portfolio</h3>
-        <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] overflow-hidden divide-y divide-[rgba(255,255,255,0.06)]">
+        <div
+          className="bg-gradient-to-br from-[#0D1B3E] to-[#1A1A2E] border border-[#0180FF]/20 rounded-[16px] overflow-hidden divide-y divide-[rgba(255,255,255,0.06)]"
+          style={{ boxShadow: '0 0 30px rgba(1,128,255,0.08)' }}>
 
           {/* Total value header */}
           <div className="px-4 py-4">
-            <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-1">Total Value</p>
+            <p className="text-[11px] text-[#3DB1FF] uppercase tracking-widest font-semibold mb-1">Total Value</p>
             {loadingData ? (
               <div className="space-y-2 animate-pulse pt-1">
                 <SkeletonLine width="w-36" height="h-8" />
@@ -243,7 +245,7 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
               </div>
             ) : (
               <>
-                <h2 className="text-[28px] font-bold text-white leading-none tracking-tight">{portfolioDisplay}</h2>
+                <h2 className="text-[32px] font-bold text-white leading-none tracking-tight">{portfolioDisplay}</h2>
                 {wallet && balance && (
                   <span className="flex items-center text-[#6B7280] font-medium text-[14px] mt-1">
                     <ArrowUp size={14} className="mr-0.5" />
@@ -322,12 +324,13 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
       <div className="grid grid-cols-2 gap-2">
         <button
           onClick={onDeFiBriefing}
-          className="border border-[#7354F2] text-[#7354F2] bg-transparent rounded-[12px] py-3 text-[13px] font-bold transition-all hover:bg-[#7354F2]/10 active:scale-[0.98]">
+          className="bg-[#0180FF] text-white rounded-[12px] py-3 text-[13px] font-bold transition-all hover:bg-[#3DB1FF] active:scale-[0.98]"
+          style={{ boxShadow: '0 0 16px rgba(1,128,255,0.35)' }}>
           📊 Get DeFi Briefing
         </button>
         <button
           onClick={sharePortfolio}
-          className="border border-[#0180FF] text-[#0180FF] bg-transparent rounded-[12px] py-3 text-[13px] font-bold transition-all hover:bg-[#0180FF]/10 active:scale-[0.98]">
+          className="bg-transparent border border-[#0180FF] text-[#0180FF] rounded-[12px] py-3 text-[13px] font-bold transition-all hover:bg-[#0180FF]/10 active:scale-[0.98]">
           🔗 Share Portfolio
         </button>
       </div>

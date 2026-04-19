@@ -258,7 +258,7 @@ export default function MarketTab() {
         </div>
 
         {loading ? (
-          <div className="space-y-[20px]">
+          <div className="space-y-[10px]">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
@@ -281,7 +281,7 @@ export default function MarketTab() {
             ))}
           </div>
         ) : (
-          <div className="space-y-[20px]">
+          <div className="space-y-[10px]">
             {filteredTokens.length === 0 && (
               <p className="text-[#6B7280] text-[14px] text-center mt-8">No tokens found</p>
             )}
@@ -316,11 +316,7 @@ export default function MarketTab() {
                       <p className="font-bold text-[14px] text-[#E5E7EB] tracking-wide">
                         {price(token.dex_price_usd)}
                       </p>
-                      {token.change === 'N/A' ? (
-                        <div className="mt-1 inline-flex items-center justify-center px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold tracking-widest bg-[#374151] text-[#6B7280]">
-                          N/A
-                        </div>
-                      ) : (
+                      {token.change !== 'N/A' && (
                         <div className={`mt-1 inline-flex items-center justify-center px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold tracking-widest ${isPositive ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#FF4D4D]/10 text-[#FF4D4D]'}`}>
                           {token.change}
                         </div>
