@@ -84,9 +84,19 @@ export default function App() {
             {/* Right: TON price chip + settings */}
             <div className="flex items-center gap-2">
               {tonPrice && (
-                <span className="text-[12px] font-bold text-[#3DB1FF] bg-[#0180FF]/10 px-2 py-1 rounded-[8px]">
-                  TON {tonPrice}
-                </span>
+                <div className="flex items-center gap-1.5 bg-[#0180FF]/10 border border-[#0180FF]/20 px-2.5 py-1.5 rounded-[10px]">
+                  {/* TON coin avatar */}
+                  <div className="w-[18px] h-[18px] rounded-full bg-[#0180FF] flex items-center justify-center shrink-0">
+                    <span className="text-white text-[9px] font-black leading-none">T</span>
+                  </div>
+                  {/* Price rows */}
+                  <div className="flex flex-col leading-none gap-[3px]">
+                    <span className="text-[12px] font-bold text-[#3DB1FF] leading-none">TON {tonPrice}</span>
+                    <span className="text-[9px] text-[#6B7280] font-semibold uppercase tracking-widest leading-none">market price</span>
+                  </div>
+                  {/* Live indicator */}
+                  <div className="w-[6px] h-[6px] rounded-full bg-[#00D395] shrink-0 animate-pulse" />
+                </div>
               )}
               <button
                 onClick={() => setShowSettings(true)}

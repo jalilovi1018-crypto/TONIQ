@@ -540,8 +540,23 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
         {isTyping && (
           <div className="flex w-full justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="flex items-end space-x-2">
-              <div className="w-8 h-8 shrink-0 rounded-full bg-gradient-to-tr from-[#0180FF] to-[#7354F2] flex items-center justify-center shadow-[0_0_15px_rgba(1,128,255,0.4)] animate-pulse">
-                <span className="text-white font-bold text-[10px] tracking-wider">AI</span>
+              <div
+                className="w-9 h-9 shrink-0 animate-pulse"
+                style={{ filter: 'drop-shadow(0 0 8px rgba(1,128,255,0.6))' }}
+              >
+                <svg width="36" height="36" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="tiq-think-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#1a8fe0"/>
+                      <stop offset="100%" stopColor="#0055aa"/>
+                    </linearGradient>
+                  </defs>
+                  <circle cx="50" cy="50" r="50" fill="url(#tiq-think-bg)"/>
+                  <polygon points="50,18 69,32 50,36 31,32" fill="white" stroke="#1472c4" strokeWidth="1.5"/>
+                  <polygon points="69,32 50,36 59,74 80,53" fill="rgba(255,255,255,0.85)" stroke="#1472c4" strokeWidth="1.5"/>
+                  <polygon points="31,32 50,36 41,74 20,53" fill="rgba(255,255,255,0.7)" stroke="#1472c4" strokeWidth="1.5"/>
+                  <polygon points="41,74 50,36 59,74 50,81" fill="rgba(255,255,255,0.6)" stroke="#1472c4" strokeWidth="1.5"/>
+                </svg>
               </div>
               <div className="max-w-[85%] px-5 py-4 bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] rounded-bl-[0]">
                 <div className="flex space-x-1.5 items-center h-4">
