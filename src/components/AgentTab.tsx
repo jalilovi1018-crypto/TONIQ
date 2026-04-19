@@ -1,4 +1,4 @@
-import { Send, MessageSquare, X, Plus, Trash2 } from 'lucide-react';
+import { Send, MessageSquare, X, Plus, Trash2, ExternalLink } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useTonWallet } from '@tonconnect/ui-react';
@@ -12,10 +12,17 @@ type StakingData = Awaited<ReturnType<typeof fetchStakingAPY>>;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface MessageAction {
+  type: 'swap' | 'stake' | 'pool';
+  label: string;
+  url: string;
+}
+
 interface Message {
   id: number;
-  sender: string;
+  sender: 'user' | 'agent';
   text: string;
+  action?: MessageAction;
 }
 
 interface Chat {
@@ -118,6 +125,42 @@ function formatChatDate(ts: number): string {
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ─── Action detection ─────────────────────────────────────────────────────────
+
+function detectAction(text: string): MessageAction | undefined {
+  const lower = text.toLowerCase();
+
+  if (/\b(swap|exchange|convert|trade)\b/.test(lower)) {
+    const m = text.match(/(\d+(?:\.\d+)?)\s+([A-Za-z]+)\s+(?:to|for|into|->)\s+([A-Za-z]+)/i);
+    const fromToken = m ? m[2].toUpperCase() : 'TON';
+    const toToken   = m ? m[3].toUpperCase() : 'USDT';
+    const amount    = m ? m[1] : '1';
+    return {
+      type: 'swap',
+      label: '🔄 Execute Swap on STON.fi',
+      url: `https://app.ston.fi/swap?ft=${fromToken}&tt=${toToken}&fa=${amount}`,
+    };
+  }
+
+  if (/\b(stake|staking|yield|tston)\b/.test(lower)) {
+    return {
+      type: 'stake',
+      label: '💎 Stake on Tonstakers',
+      url: 'https://app.tonstakers.com/?source=toniq',
+    };
+  }
+
+  if (/\b(pool|liquidity|lp)\b/.test(lower)) {
+    return {
+      type: 'pool',
+      label: '💧 Add Liquidity on STON.fi',
+      url: 'https://app.ston.fi/pools',
+    };
+  }
+
+  return undefined;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -369,7 +412,13 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
 
       console.log('context being sent:', ctx);
       const reply = await askTONIQ(text, ctx);
-      setMessages(prev => [...prev, { id: Date.now() + 1, sender: 'agent', text: reply }]);
+      const action = detectAction(text);
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        sender: 'agent',
+        text: reply,
+        ...(action ? { action } : {}),
+      }]);
     } catch {
       setMessages(prev => [...prev, {
         id: Date.now() + 1,
@@ -466,7 +515,7 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
       {/* ── Messages ── */}
       <div className="flex-1 p-5 space-y-4" style={{ background: 'radial-gradient(ellipse at top, rgba(1,128,255,0.03) 0%, transparent 70%)' }}>
         {messages.map((msg) => (
-          <div key={msg.id} className={`flex w-full ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={msg.id} className={`flex flex-col w-full ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
             <div className={`max-w-[85%] p-4 text-[14px] text-[#E5E7EB] leading-relaxed ${
               msg.sender === 'user'
                 ? 'bg-[#0180FF] text-white rounded-[16px] rounded-br-[0]'
@@ -474,6 +523,16 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
             }`}>
               {msg.sender === 'agent' ? <ReactMarkdown>{msg.text}</ReactMarkdown> : msg.text}
             </div>
+            {msg.action && (
+              <button
+                onClick={() => window.open(msg.action!.url, '_blank')}
+                className="mt-2 flex items-center gap-2 bg-[#0180FF] hover:bg-[#3DB1FF] text-white text-[13px] font-bold px-4 py-2.5 rounded-[12px] transition-all active:scale-95"
+                style={{ boxShadow: '0 0 15px rgba(1,128,255,0.4)' }}
+              >
+                {msg.action.label}
+                <ExternalLink size={14} />
+              </button>
+            )}
           </div>
         ))}
 
