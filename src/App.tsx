@@ -81,11 +81,14 @@ export default function App() {
               )}
             </div>
 
-            {/* Right: TON price chip + settings */}
+            {/* Right: price ticker pill + settings */}
             <div className="flex items-center gap-2">
               {tonPrice && (
                 <div className="flex flex-col leading-none bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] px-3 py-2 rounded-[10px]">
-                  <span className="text-[12px] font-medium text-[#E5E7EB]">TON — {tonPrice}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-[7px] h-[7px] rounded-full bg-[#22C55E] animate-pulse shrink-0" />
+                    <span className="text-[12px] font-medium text-[#E5E7EB]">TON — {tonPrice}</span>
+                  </div>
                   <span className="text-[10px] text-[#6B7280] mt-[3px]">market price</span>
                 </div>
               )}
