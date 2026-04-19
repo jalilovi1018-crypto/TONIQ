@@ -17,6 +17,7 @@ export default function App() {
     () => localStorage.getItem('toniq_display_name') || ''
   );
   const [tonPrice, setTonPrice] = useState<string>('');
+  const [tonImageUrl, setTonImageUrl] = useState<string>('');
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Scroll back to top on every tab switch
@@ -29,7 +30,10 @@ export default function App() {
     const update = () => {
       fetchTopTokens().then(tokens => {
         const ton = tokens.find(t => t.symbol === 'TON');
-        if (ton) setTonPrice(`$${parseFloat(ton.dex_price_usd).toFixed(2)}`);
+        if (ton) {
+          setTonPrice(`$${parseFloat(ton.dex_price_usd).toFixed(2)}`);
+          if (ton.image_url) setTonImageUrl(ton.image_url);
+        }
       }).catch(() => {/* ignore — price chip just stays empty */});
     };
     update();
@@ -85,16 +89,18 @@ export default function App() {
             <div className="flex items-center gap-2">
               {tonPrice && (
                 <div className="flex items-center gap-1.5 bg-[#0180FF]/10 border border-[#0180FF]/20 px-2.5 py-1.5 rounded-[10px]">
-                  {/* TON coin avatar */}
-                  <div className="w-[18px] h-[18px] rounded-full bg-[#0180FF] flex items-center justify-center shrink-0">
-                    <span className="text-white text-[9px] font-black leading-none">T</span>
-                  </div>
-                  {/* Price rows */}
-                  <div className="flex flex-col leading-none gap-[3px]">
-                    <span className="text-[12px] font-bold text-[#3DB1FF] leading-none">TON {tonPrice}</span>
-                    <span className="text-[9px] text-[#6B7280] font-semibold uppercase tracking-widest leading-none">market price</span>
-                  </div>
-                  {/* Live indicator */}
+                  {tonImageUrl ? (
+                    <img
+                      src={tonImageUrl}
+                      alt="TON"
+                      className="w-5 h-5 rounded-full shrink-0 object-cover"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-[#0180FF] flex items-center justify-center shrink-0">
+                      <span className="text-white text-[9px] font-black leading-none">T</span>
+                    </div>
+                  )}
+                  <span className="text-[12px] font-bold text-[#3DB1FF] leading-none">TON — {tonPrice}</span>
                   <div className="w-[6px] h-[6px] rounded-full bg-[#00D395] shrink-0 animate-pulse" />
                 </div>
               )}

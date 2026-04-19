@@ -81,6 +81,7 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
     } catch { return []; }
   });
   const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
+  const [tonImageUrl, setTonImageUrl] = useState<string>('');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [strategies, setStrategies] = useState<Strategy[]>(() => {
     try {
@@ -92,7 +93,7 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
     fetchStakingAPY().then((d) => setLiveAPY(d.apy));
   }, []);
 
-  // Fetch live token prices for alert progress bars
+  // Fetch live token prices for alert progress bars + TON image
   useEffect(() => {
     fetchTopTokens().then(tokens => {
       const prices: Record<string, number> = {};
@@ -101,6 +102,8 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
         if (!isNaN(p)) prices[t.symbol.toUpperCase()] = p;
       });
       setTokenPrices(prices);
+      const ton = tokens.find(t => t.symbol === 'TON');
+      if (ton?.image_url) setTonImageUrl(ton.image_url);
     });
   }, []);
 
@@ -261,8 +264,10 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
               {balance && (
                 <div className="flex items-center justify-between px-4 py-3">
                   <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 rounded-full bg-[#0180FF] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                      T
+                    <div className="w-6 h-6 rounded-full bg-[#0180FF] overflow-hidden flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                      {tonImageUrl
+                        ? <img src={tonImageUrl} alt="TON" className="w-full h-full object-cover" />
+                        : <span>T</span>}
                     </div>
                     <div>
                       <p className="font-bold text-[13px] text-[#E5E7EB]">TON</p>
