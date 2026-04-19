@@ -6,6 +6,7 @@ import { fetchWalletBalance, fetchTransactions } from '../services/tonapi';
 import { fetchStakingAPY } from '../services/tonstakers';
 import { fetchTopTokens } from '../services/stonfi';
 import { SkeletonLine } from './Skeleton';
+import { useCurrency, formatPrice } from '../context/CurrencyContext';
 
 type WalletBalance = Awaited<ReturnType<typeof fetchWalletBalance>>;
 type TxList = Awaited<ReturnType<typeof fetchTransactions>>;
@@ -64,6 +65,7 @@ interface HomeTabProps {
 }
 
 export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
+  const { currency } = useCurrency();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
@@ -168,9 +170,10 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
     } catch { /* ignore */ }
   };
 
-  const portfolioDisplay = balance
-    ? `$${balance.usd_value > 0 ? balance.usd_value.toFixed(2) : (balance.balance * 5.24).toFixed(2)}`
-    : '$0.00';
+  const rawPortfolioUSD = balance
+    ? (balance.usd_value > 0 ? balance.usd_value : balance.balance * 5.24)
+    : 0;
+  const portfolioDisplay = formatPrice(rawPortfolioUSD, currency);
 
   const tonBalanceDisplay = balance ? balance.balance.toFixed(2) : '—';
 
@@ -348,7 +351,7 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
                   className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-bold text-[14px] text-[#E5E7EB]">
-                      {alert.symbol} → ${alert.targetPrice.toFixed(2)}
+                      {alert.symbol} → {formatPrice(alert.targetPrice, currency)}
                     </span>
                     <div className="flex items-center gap-2">
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
@@ -366,7 +369,7 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
                     </div>
                   </div>
                   <p className="text-[12px] text-[#6B7280] mb-2">
-                    Current: ${currentPrice > 0 ? currentPrice.toFixed(4) : '—'}
+                    Current: {currentPrice > 0 ? formatPrice(currentPrice, currency) : '—'}
                   </p>
                   <div className="w-full bg-[#374151] rounded-full h-1.5">
                     <div

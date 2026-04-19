@@ -1,17 +1,17 @@
 import { Search, Circle, Star } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import TokenDetail, { symbolHashValue } from './TokenDetail';
 import { fetchTopTokens, Token } from '../services/stonfi';
 import { SkeletonLine } from './Skeleton';
+import { useCurrency, formatTokenPrice } from '../context/CurrencyContext';
 
 const STABLECOINS = new Set(['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDE']);
 
 const Sparkline = ({ isPositive }: { isPositive: boolean }) => {
   const color = isPositive ? '#00D395' : '#FF4D4D';
   const points = isPositive
-    ? "0,20 10,15 20,22 30,10 40,12 50,2"
-    : "0,5 10,8 20,3 30,15 40,12 50,22";
-
+    ? '0,20 10,15 20,22 30,10 40,12 50,2'
+    : '0,5 10,8 20,3 30,15 40,12 50,22';
   return (
     <svg width="48" height="24" viewBox="0 0 50 24" className="overflow-visible">
       <polyline
@@ -29,53 +29,96 @@ const Sparkline = ({ isPositive }: { isPositive: boolean }) => {
 type DisplayToken = Token & { change: string };
 
 export default function MarketTab() {
+  const { currency } = useCurrency();
+
   const [selectedToken, setSelectedToken] = useState<DisplayToken | null>(null);
   const [tokens, setTokens] = useState<DisplayToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [watchlist, setWatchlist] = useState<string[]>(
-    () => {
-      try {
-        return JSON.parse(localStorage.getItem('toniq_watchlist') || '[]');
-      } catch {
-        return [];
-      }
-    }
-  );
 
-  // Keep watchlist symbols in a Set for O(1) lookup
-  const watchlistSet = useMemo(() => new Set(watchlist), [watchlist]);
+  // ── Watchlist ────────────────────────────────────────────────────────────────
+  const [watchlist, setWatchlist] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('toniq_watchlist') || '[]'); }
+    catch { return []; }
+  });
 
-  const toggleWatchlist = (symbol: string) => {
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  const [toast, setToast] = useState<{ msg: string; added: boolean } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (msg: string, added: boolean) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ msg, added });
+    toastTimer.current = setTimeout(() => setToast(null), 1500);
+  };
+
+  const toggleWatchlist = (symbol: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const isAdding = !watchlist.includes(symbol);
     setWatchlist(prev => {
-      const next = prev.includes(symbol)
-        ? prev.filter(s => s !== symbol)
-        : [...prev, symbol];
+      const next = isAdding
+        ? [...prev, symbol]
+        : prev.filter(s => s !== symbol);
       localStorage.setItem('toniq_watchlist', JSON.stringify(next));
       return next;
     });
+    showToast(
+      isAdding ? '⭐ Added to watchlist' : 'Removed from watchlist',
+      isAdding,
+    );
   };
 
-  // Sparkline direction: uses same hash as TokenDetail chart so they always agree
+  // ── Derived lists ─────────────────────────────────────────────────────────
   const sparklineDirection = useMemo(() => {
     const map: Record<string, boolean> = {};
-    tokens.forEach((t) => { map[t.symbol] = symbolHashValue(t.symbol) % 2 === 0; });
+    tokens.forEach(t => { map[t.symbol] = symbolHashValue(t.symbol) % 2 === 0; });
     return map;
   }, [tokens]);
 
-  // Top 3 non-stablecoin tokens by highest price
-  const trending = useMemo(() => {
-    return [...tokens]
+  const trending = useMemo(() =>
+    [...tokens]
       .filter(t => !STABLECOINS.has(t.symbol.toUpperCase()))
       .sort((a, b) => parseFloat(b.dex_price_usd) - parseFloat(a.dex_price_usd))
-      .slice(0, 3);
-  }, [tokens]);
+      .slice(0, 3),
+    [tokens]);
 
-  // Watchlisted tokens that are currently loaded
+  const gainers = useMemo(() =>
+    [...tokens]
+      .filter(t =>
+        !STABLECOINS.has(t.symbol.toUpperCase()) &&
+        symbolHashValue(t.symbol) % 2 === 0)
+      .sort((a, b) => parseFloat(b.dex_price_usd) - parseFloat(a.dex_price_usd))
+      .slice(0, 3),
+    [tokens]);
+
+  const losers = useMemo(() =>
+    [...tokens]
+      .filter(t => {
+        const p = parseFloat(t.dex_price_usd);
+        return (
+          !STABLECOINS.has(t.symbol.toUpperCase()) &&
+          symbolHashValue(t.symbol) % 2 !== 0 &&
+          Number.isFinite(p) &&
+          p > 0.001
+        );
+      })
+      .sort((a, b) => parseFloat(a.dex_price_usd) - parseFloat(b.dex_price_usd))
+      .slice(0, 3),
+    [tokens]);
+
   const watchlistedTokens = useMemo(
-    () => tokens.filter(t => watchlistSet.has(t.symbol)),
-    [tokens, watchlistSet]
-  );
+    () => tokens.filter(t => watchlist.includes(t.symbol)),
+    [tokens, watchlist]);
+
+  const filteredTokens = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return !q
+      ? tokens
+      : tokens.filter(t =>
+          t.symbol.toLowerCase().includes(q) ||
+          t.display_name.toLowerCase().includes(q));
+  }, [tokens, searchQuery]);
 
   useEffect(() => {
     (async () => {
@@ -83,7 +126,7 @@ export default function MarketTab() {
         fetchTopTokens(),
         new Promise(resolve => setTimeout(resolve, 800)),
       ]);
-      setTokens(data.map((t) => ({ ...t, change: 'N/A' })));
+      setTokens(data.map(t => ({ ...t, change: 'N/A' })));
       setLoading(false);
     })();
   }, []);
@@ -92,22 +135,13 @@ export default function MarketTab() {
     return <TokenDetail token={selectedToken} onBack={() => setSelectedToken(null)} />;
   }
 
-  const formatPrice = (raw: string) => {
-    const n = parseFloat(raw);
-    if (!Number.isFinite(n)) return raw;
-    return n < 0.01 ? `$${n.toFixed(6)}` : `$${n.toFixed(2)}`;
-  };
-
-  const filteredTokens = tokens.filter((t) => {
-    const q = searchQuery.toLowerCase();
-    return !q || t.symbol.toLowerCase().includes(q) || t.display_name.toLowerCase().includes(q);
-  });
+  const price = (raw: string) => formatTokenPrice(parseFloat(raw), currency);
 
   return (
     <div className="p-5 flex flex-col h-full">
       <h1 className="text-[24px] font-bold text-white mb-4 leading-none">Market</h1>
 
-      {/* Search Bar */}
+      {/* Search */}
       <div className="relative mb-4">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           <Search size={18} className="text-[#6B7280]" />
@@ -115,7 +149,7 @@ export default function MarketTab() {
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={e => setSearchQuery(e.target.value)}
           className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] text-[14px] text-[#E5E7EB] rounded-[16px] w-full pl-12 pr-4 py-3 placeholder-[#6B7280] focus:outline-none focus:border-[#0180FF] transition-colors"
           placeholder="Search tokens..."
         />
@@ -124,9 +158,7 @@ export default function MarketTab() {
       {/* ⭐ Watchlist chips */}
       {!loading && watchlistedTokens.length > 0 && (
         <div className="mb-5">
-          <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-2 px-1">
-            ⭐ Watchlist
-          </p>
+          <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-2 px-1">⭐ Watchlist</p>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
             {watchlistedTokens.map(token => (
               <button
@@ -140,7 +172,7 @@ export default function MarketTab() {
                     : <Circle size={12} strokeWidth={2} className="text-[#6B7280]" />}
                 </div>
                 <span className="text-[13px] font-bold text-[#E5E7EB]">{token.symbol}</span>
-                <span className="text-[12px] text-[#FFB800]">{formatPrice(token.dex_price_usd)}</span>
+                <span className="text-[12px] font-bold text-[#FFB800]">{price(token.dex_price_usd)}</span>
               </button>
             ))}
           </div>
@@ -152,7 +184,7 @@ export default function MarketTab() {
         <div className="mb-5">
           <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-2 px-1">🔥 Trending</p>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {trending.map((token) => (
+            {trending.map(token => (
               <button
                 key={token.symbol}
                 type="button"
@@ -164,9 +196,56 @@ export default function MarketTab() {
                     : <Circle size={12} strokeWidth={2} className="text-[#6B7280]" />}
                 </div>
                 <span className="text-[13px] font-bold text-[#E5E7EB]">{token.symbol}</span>
-                <span className="text-[12px] text-[#6B7280]">{formatPrice(token.dex_price_usd)}</span>
+                <span className="text-[12px] text-[#6B7280]">{price(token.dex_price_usd)}</span>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* 📈 Gainers & 📉 Losers */}
+      {!loading && gainers.length > 0 && losers.length > 0 && (
+        <div className="mb-5">
+          <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-3 px-1">
+            📈 Gainers &amp; 📉 Losers
+          </p>
+          <div className="grid grid-cols-2 gap-2.5">
+            {/* Gainers */}
+            <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-3">
+              <p className="text-[11px] font-bold text-[#22C55E] uppercase tracking-widest mb-2.5">
+                📈 Gainers
+              </p>
+              <div className="space-y-2.5">
+                {gainers.map(t => (
+                  <button
+                    key={t.symbol}
+                    type="button"
+                    onClick={() => setSelectedToken(t)}
+                    className="w-full flex justify-between items-center hover:opacity-80 transition-opacity">
+                    <span className="text-[13px] font-bold text-[#E5E7EB]">{t.symbol}</span>
+                    <span className="text-[12px] font-bold text-[#22C55E]">{price(t.dex_price_usd)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Losers */}
+            <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-3">
+              <p className="text-[11px] font-bold text-[#FF4D4D] uppercase tracking-widest mb-2.5">
+                📉 Losers
+              </p>
+              <div className="space-y-2.5">
+                {losers.map(t => (
+                  <button
+                    key={t.symbol}
+                    type="button"
+                    onClick={() => setSelectedToken(t)}
+                    className="w-full flex justify-between items-center hover:opacity-80 transition-opacity">
+                    <span className="text-[13px] font-bold text-[#E5E7EB]">{t.symbol}</span>
+                    <span className="text-[12px] font-bold text-[#FF4D4D]">{price(t.dex_price_usd)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -208,7 +287,7 @@ export default function MarketTab() {
             )}
             {filteredTokens.map((token, index) => {
               const isPositive = sparklineDirection[token.symbol] ?? true;
-              const isStarred = watchlistSet.has(token.symbol);
+              const isStarred  = watchlist.includes(token.symbol);
 
               return (
                 <div
@@ -235,7 +314,7 @@ export default function MarketTab() {
 
                     <div className="text-right w-[72px] flex flex-col items-end">
                       <p className="font-bold text-[14px] text-[#E5E7EB] tracking-wide">
-                        {formatPrice(token.dex_price_usd)}
+                        {price(token.dex_price_usd)}
                       </p>
                       {token.change === 'N/A' ? (
                         <div className="mt-1 inline-flex items-center justify-center px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold tracking-widest bg-[#374151] text-[#6B7280]">
@@ -248,25 +327,16 @@ export default function MarketTab() {
                       )}
                     </div>
 
-                    {/* Star / watchlist toggle — stopPropagation prevents row navigation */}
+                    {/* Star — stopPropagation prevents row navigation */}
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        toggleWatchlist(token.symbol);
-                      }}
-                      className={`p-2 rounded-full transition-colors active:scale-90 shrink-0 ${
-                        isStarred
-                          ? 'text-[#FFB800]'
-                          : 'text-[#374151] hover:text-[#FFB800]'
-                      }`}
-                      aria-label={isStarred ? 'Remove from watchlist' : 'Add to watchlist'}
+                      onClick={(e) => toggleWatchlist(token.symbol, e)}
+                      className="p-2 z-10 relative"
                     >
                       <Star
                         size={18}
-                        strokeWidth={2}
-                        className={isStarred ? 'fill-[#FFB800]' : 'fill-none'}
+                        className={isStarred ? 'text-[#FFB800]' : 'text-[#6B7280] hover:text-[#FFB800]'}
+                        fill={isStarred ? '#FFB800' : 'none'}
                       />
                     </button>
                   </div>
@@ -276,6 +346,17 @@ export default function MarketTab() {
           </div>
         )}
       </div>
+
+      {/* Watchlist toast */}
+      {toast && (
+        <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full text-[13px] font-bold z-50 whitespace-nowrap pointer-events-none transition-opacity ${
+          toast.added
+            ? 'bg-[#FFB800] text-[#0A0A0F]'
+            : 'bg-[#374151] text-[#E5E7EB]'
+        }`}>
+          {toast.msg}
+        </div>
+      )}
     </div>
   );
 }

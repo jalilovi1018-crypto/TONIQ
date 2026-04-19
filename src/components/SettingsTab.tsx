@@ -1,5 +1,6 @@
 import { X, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
+import { useCurrency } from '../context/CurrencyContext';
 
 interface SettingsTabProps {
   onClose: () => void;
@@ -8,6 +9,7 @@ interface SettingsTabProps {
 function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
+      type="button"
       onClick={() => onChange(!value)}
       className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${value ? 'bg-[#0180FF]' : 'bg-[#374151]'}`}>
       <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform duration-200 ${value ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -28,20 +30,16 @@ export default function SettingsTab({ onClose }: SettingsTabProps) {
   const [displayName, setDisplayName] = useState(
     () => localStorage.getItem('toniq_display_name') || ''
   );
-  const [currency, setCurrency] = useState<'USD' | 'EUR'>(
-    () => (localStorage.getItem('toniq_currency') as 'USD' | 'EUR') || 'USD'
-  );
   const [notifications, setNotifications] = useState(
     () => localStorage.getItem('toniq_notifications') !== 'false'
   );
 
+  // Currency lives in context so any component that uses it re-renders immediately
+  const { currency, setCurrency } = useCurrency();
+
   const updateDisplayName = (v: string) => {
     setDisplayName(v);
     localStorage.setItem('toniq_display_name', v);
-  };
-  const updateCurrency = (v: 'USD' | 'EUR') => {
-    setCurrency(v);
-    localStorage.setItem('toniq_currency', v);
   };
   const updateNotifications = (v: boolean) => {
     setNotifications(v);
@@ -57,6 +55,7 @@ export default function SettingsTab({ onClose }: SettingsTabProps) {
       <div className="flex justify-between items-center px-5 py-4 shrink-0">
         <span className="font-bold text-white text-[20px] tracking-tight">Settings</span>
         <button
+          type="button"
           onClick={onClose}
           className="w-9 h-9 flex items-center justify-center bg-[#1A1A2E] rounded-full border border-[rgba(255,255,255,0.08)] active:scale-95 transition-transform">
           <X size={18} className="text-[#E5E7EB]" />
@@ -85,16 +84,18 @@ export default function SettingsTab({ onClose }: SettingsTabProps) {
           <h2 className="text-[11px] font-bold text-[#6B7280] uppercase tracking-widest mb-3">Preferences</h2>
           <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] divide-y divide-[rgba(255,255,255,0.06)]">
 
-            {/* Currency */}
+            {/* Currency — uses context, updates all tabs instantly */}
             <Row label="Currency">
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => updateCurrency('USD')}
+                  type="button"
+                  onClick={() => setCurrency('USD')}
                   className={`px-3 py-1 rounded-[8px] text-[12px] font-bold transition-colors ${currency === 'USD' ? 'bg-[#0180FF] text-white' : 'bg-[#374151] text-[#6B7280]'}`}>
                   $ USD
                 </button>
                 <button
-                  onClick={() => updateCurrency('EUR')}
+                  type="button"
+                  onClick={() => setCurrency('EUR')}
                   className={`px-3 py-1 rounded-[8px] text-[12px] font-bold transition-colors ${currency === 'EUR' ? 'bg-[#0180FF] text-white' : 'bg-[#374151] text-[#6B7280]'}`}>
                   € EUR
                 </button>
@@ -138,6 +139,7 @@ export default function SettingsTab({ onClose }: SettingsTabProps) {
             </div>
 
             <button
+              type="button"
               onClick={() => window.open('https://github.com/jalilovi1018-crypto/TONIQ', '_blank')}
               className="flex justify-between items-center p-4 w-full hover:bg-white/[0.02] transition-colors active:scale-[0.99]">
               <span className="text-[14px] text-[#6B7280]">GitHub</span>

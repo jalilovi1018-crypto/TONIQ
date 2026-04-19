@@ -1,5 +1,12 @@
 import axios from 'axios';
 
+if (!import.meta.env.VITE_TONAPI_KEY) {
+  console.warn(
+    'TonAPI key not set — add VITE_TONAPI_KEY to .env for better rate limits. ' +
+    'Get a free key at https://tonapi.io',
+  );
+}
+
 const TONAPI_BASE_URL = 'https://tonapi.io/v2';
 const NANO_TO_TON = 1e9;
 

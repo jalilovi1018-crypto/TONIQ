@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ArrowUpRight } from 'lucide-react';
 import { fetchStakingAPY } from '../services/tonstakers';
 import { SkeletonLine } from './Skeleton';
+import { useCurrency, formatPrice } from '../context/CurrencyContext';
 
 type StakingData = Awaited<ReturnType<typeof fetchStakingAPY>>;
 
@@ -32,6 +33,7 @@ const FALLBACK_POOLS = [
 interface Pool { pair: string; apy: string; tvl: string; color1: string; color2: string; }
 
 export default function EarnTab() {
+  const { currency } = useCurrency();
   const [stakingData, setStakingData] = useState<StakingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [tonAmount, setTonAmount] = useState('');
@@ -127,7 +129,7 @@ export default function EarnTab() {
             <div className="flex justify-between text-[11px] text-[#6B7280] px-1 py-1">
               <span className="font-bold uppercase tracking-widest">Yearly yield</span>
               <span className="font-bold text-[#E5E7EB] tracking-wide">
-                ~{yearlyTsTON.toFixed(2)} tsTON (${yearlyUSD.toFixed(2)})
+                ~{yearlyTsTON.toFixed(2)} tsTON ({formatPrice(yearlyUSD, currency)})
               </span>
             </div>
             <button
@@ -165,7 +167,7 @@ export default function EarnTab() {
                       {earnedTsTON != null ? `+${earnedTsTON.toFixed(3)} tsTON` : '—'}
                     </p>
                     <p className="text-[11px] text-[#6B7280] mt-1">
-                      {earnedUSD != null ? `$${earnedUSD.toFixed(2)}` : '—'}
+                      {earnedUSD != null ? formatPrice(earnedUSD, currency) : '—'}
                     </p>
                   </div>
                 );
