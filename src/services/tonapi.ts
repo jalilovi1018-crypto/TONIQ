@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { fetchTopTokens } from './stonfi';
 
 if (!import.meta.env.VITE_TONAPI_KEY) {
   console.warn(
@@ -91,6 +92,74 @@ export async function fetchWalletBalance(address: string) {
     balance: toNumber(response.data.balance) / NANO_TO_TON,
     usd_value: toNumber(response.data.balance_usd ?? response.data.usd_value),
   };
+}
+
+// ── Jetton balances ───────────────────────────────────────────────────────────
+
+interface TonApiJettonMeta {
+  address?: string;
+  name?: string;
+  symbol?: string;
+  decimals?: number;
+  image?: string;
+}
+
+interface TonApiJettonBalanceItem {
+  balance?: string | number;
+  price?: { prices?: Record<string, number> };
+  jetton?: TonApiJettonMeta;
+}
+
+interface TonApiJettonsResponse {
+  balances?: TonApiJettonBalanceItem[];
+}
+
+export interface JettonBalance {
+  symbol: string;
+  name: string;
+  balance: number;
+  price_usd: number;
+  image_url: string;
+  usd_value: number;
+}
+
+export async function fetchJettonBalances(address: string): Promise<JettonBalance[]> {
+  // Build STON.fi fallback price map (ignore errors — TonAPI prices are primary)
+  const stonfiMap: Record<string, number> = {};
+  try {
+    const tokens = await fetchTopTokens();
+    tokens.forEach(t => {
+      const p = parseFloat(t.dex_price_usd);
+      if (Number.isFinite(p)) stonfiMap[t.symbol.toUpperCase()] = p;
+    });
+  } catch { /* proceed without fallback */ }
+
+  const response = await axios.get<TonApiJettonsResponse>(
+    `${TONAPI_BASE_URL}/accounts/${address}/jettons`,
+    { headers: authHeaders() },
+  );
+
+  return (response.data.balances ?? [])
+    .map(item => {
+      const meta     = item.jetton ?? {};
+      const symbol   = String(meta.symbol ?? '');
+      const name     = String(meta.name ?? symbol);
+      const decimals = typeof meta.decimals === 'number' ? meta.decimals : 9;
+      const balance  = toNumber(item.balance) / Math.pow(10, decimals);
+      const apiPrice = item.price?.prices?.['USD'] ?? null;
+      const price_usd = apiPrice ?? stonfiMap[symbol.toUpperCase()] ?? 0;
+      return {
+        symbol,
+        name,
+        balance,
+        price_usd,
+        image_url: String(meta.image ?? ''),
+        usd_value: balance * price_usd,
+      };
+    })
+    .filter(t => t.symbol !== '' && t.balance > 0)
+    .sort((a, b) => b.usd_value - a.usd_value)
+    .slice(0, 5);
 }
 
 export async function fetchTransactions(address: string) {

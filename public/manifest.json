@@ -1,0 +1,18 @@
+{
+  "name": "TONIQ - AI DeFi Agent",
+  "short_name": "TONIQ",
+  "description": "Your AI-powered DeFi agent on TON blockchain",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0A0F",
+  "theme_color": "#0180FF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

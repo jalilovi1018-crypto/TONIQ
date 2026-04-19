@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ArrowUpRight, ArrowDownRight, Activity, ArrowUp, Coins, Percent, LayoutGrid, Trash2 } from 'lucide-react';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
-import { fetchWalletBalance, fetchTransactions } from '../services/tonapi';
+import { fetchWalletBalance, fetchTransactions, fetchJettonBalances, JettonBalance } from '../services/tonapi';
 import { fetchStakingAPY } from '../services/tonstakers';
 import { fetchTopTokens } from '../services/stonfi';
 import { SkeletonLine } from './Skeleton';
@@ -72,6 +72,8 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [txList, setTxList] = useState<TxList>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [jettonBalances, setJettonBalances] = useState<JettonBalance[]>([]);
+  const [loadingJettons, setLoadingJettons] = useState(false);
   const [liveAPY, setLiveAPY] = useState<number | null>(null);
   const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
     try {
@@ -106,12 +108,14 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
     if (!wallet) {
       setBalance(null);
       setTxList([]);
+      setJettonBalances([]);
       return;
     }
 
     const address = wallet.account.address;
 
     (async () => {
+      // ── Phase 1: balance + transactions ───────────────────────────────────
       setLoadingData(true);
       try {
         const balanceData = await fetchWalletBalance(address);
@@ -120,12 +124,25 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
         setBalance(balanceData);
         setTxList(txData);
       } catch (err: unknown) {
-        // 429 rate-limit: show empty state silently; log everything else
         if (!axios.isAxiosError(err) || err.response?.status !== 429) {
           console.error('Wallet data fetch error:', err);
         }
       } finally {
         setLoadingData(false);
+      }
+
+      // ── Phase 2: jetton balances (separate, after a gap) ─────────────────
+      setLoadingJettons(true);
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        const jettons = await fetchJettonBalances(address);
+        setJettonBalances(jettons);
+      } catch (err: unknown) {
+        if (!axios.isAxiosError(err) || err.response?.status !== 429) {
+          console.error('Jetton fetch error:', err);
+        }
+      } finally {
+        setLoadingJettons(false);
       }
     })();
   }, [wallet]);
@@ -211,26 +228,93 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
         )}
       </div>
 
-      {/* Portfolio Card */}
-      <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4">
-        <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-1">Portfolio Value</p>
-        <div className="flex flex-col space-y-1">
-          {loadingData ? (
-            <div className="space-y-2 animate-pulse pt-1">
-              <SkeletonLine width="w-36" height="h-8" />
-              <SkeletonLine width="w-20" height="h-4" />
-            </div>
-          ) : (
+      {/* ── PORTFOLIO (merged: total value + token breakdown) ── */}
+      <div>
+        <h3 className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-3 px-1 mt-2">Portfolio</h3>
+        <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] overflow-hidden divide-y divide-[rgba(255,255,255,0.06)]">
+
+          {/* Total value header */}
+          <div className="px-4 py-4">
+            <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-1">Total Value</p>
+            {loadingData ? (
+              <div className="space-y-2 animate-pulse pt-1">
+                <SkeletonLine width="w-36" height="h-8" />
+                <SkeletonLine width="w-20" height="h-4" />
+              </div>
+            ) : (
+              <>
+                <h2 className="text-[28px] font-bold text-white leading-none tracking-tight">{portfolioDisplay}</h2>
+                {wallet && balance && (
+                  <span className="flex items-center text-[#6B7280] font-medium text-[14px] mt-1">
+                    <ArrowUp size={14} className="mr-0.5" />
+                    —
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Token rows — only when wallet is connected */}
+          {wallet && (
             <>
-              <h2 className="text-[28px] font-bold text-white leading-none tracking-tight">{portfolioDisplay}</h2>
-              {wallet && balance && (
-                <span className="flex items-center text-[#6B7280] font-medium text-[14px]">
-                  <ArrowUp size={14} className="mr-0.5" />
-                  —
-                </span>
+              {/* TON native row */}
+              {balance && (
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-[#0180FF] flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                      T
+                    </div>
+                    <div>
+                      <p className="font-bold text-[13px] text-[#E5E7EB]">TON</p>
+                      <p className="text-[11px] text-[#6B7280]">{balance.balance.toFixed(2)} TON</p>
+                    </div>
+                  </div>
+                  <p className="font-bold text-[13px] text-[#E5E7EB]">
+                    {formatPrice(balance.usd_value > 0 ? balance.usd_value : balance.balance * 5.24, currency)}
+                  </p>
+                </div>
               )}
+
+              {/* Jetton rows */}
+              {loadingJettons ? (
+                <div className="px-4 py-3 space-y-3 animate-pulse">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-6 h-6 rounded-full bg-[#2A2A3E] shrink-0" />
+                        <SkeletonLine width="w-16" height="h-3.5" />
+                      </div>
+                      <SkeletonLine width="w-12" height="h-3.5" />
+                    </div>
+                  ))}
+                </div>
+              ) : jettonBalances.length > 0 ? (
+                jettonBalances.map(t => (
+                  <div key={t.symbol} className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 rounded-full bg-[#374151] flex items-center justify-center text-white text-[10px] font-bold overflow-hidden shrink-0">
+                        {t.image_url
+                          ? <img src={t.image_url} alt={t.symbol} className="w-full h-full object-cover" />
+                          : <span>{t.symbol.slice(0, 2)}</span>}
+                      </div>
+                      <div>
+                        <p className="font-bold text-[13px] text-[#E5E7EB]">{t.symbol}</p>
+                        <p className="text-[11px] text-[#6B7280]">
+                          {t.balance >= 1 ? t.balance.toFixed(2) : t.balance.toFixed(4)} {t.symbol}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="font-bold text-[13px] text-[#E5E7EB]">
+                      {formatPrice(t.usd_value, currency)}
+                    </p>
+                  </div>
+                ))
+              ) : balance ? (
+                <p className="text-[13px] text-[#6B7280] text-center px-4 py-3">No tokens found</p>
+              ) : null}
             </>
           )}
+
         </div>
       </div>
 
