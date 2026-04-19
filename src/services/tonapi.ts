@@ -3,6 +3,11 @@ import axios from 'axios';
 const TONAPI_BASE_URL = 'https://tonapi.io/v2';
 const NANO_TO_TON = 1e9;
 
+function authHeaders(): Record<string, string> {
+  const key = import.meta.env.VITE_TONAPI_KEY;
+  return key ? { Authorization: `Bearer ${key}` } : {};
+}
+
 type JsonRecord = Record<string, unknown>;
 
 interface TonApiAccountResponse {
@@ -72,6 +77,7 @@ function extractActionAmount(action?: TonApiEventAction): number | null {
 export async function fetchWalletBalance(address: string) {
   const response = await axios.get<TonApiAccountResponse>(
     `${TONAPI_BASE_URL}/accounts/${address}`,
+    { headers: authHeaders() },
   );
 
   return {
@@ -85,6 +91,7 @@ export async function fetchTransactions(address: string) {
     `${TONAPI_BASE_URL}/accounts/${address}/events`,
     {
       params: { limit: 10 },
+      headers: authHeaders(),
     },
   );
 

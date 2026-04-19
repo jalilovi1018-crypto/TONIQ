@@ -31,6 +31,12 @@ interface PriceAlert {
   createdAt: number;
 }
 
+interface Strategy {
+  id: string;
+  text: string;
+  createdAt: number;
+}
+
 interface AgentTabProps {
   initialMessage?: string;
   onClearInitialMessage?: () => void;
@@ -49,6 +55,18 @@ function loadAlerts(): PriceAlert[] {
 function saveAlerts(alerts: PriceAlert[]) {
   try {
     localStorage.setItem('toniq_alerts', JSON.stringify(alerts));
+  } catch { /* ignore */ }
+}
+
+function loadStrategies(): Strategy[] {
+  try {
+    return JSON.parse(localStorage.getItem('toniq_strategies') || '[]');
+  } catch { return []; }
+}
+
+function saveStrategies(strategies: Strategy[]) {
+  try {
+    localStorage.setItem('toniq_strategies', JSON.stringify(strategies));
   } catch { /* ignore */ }
 }
 
@@ -281,6 +299,18 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
           setIsTyping(false);
           return;
         }
+      }
+
+      // ── Strategy Builder ─────────────────────────────────────────────────
+      const strategyIntent = /\b(every|weekly|monthly|daily|strategy|plan|automatically|auto)\b/i;
+      if (strategyIntent.test(text)) {
+        const existing = loadStrategies();
+        const newStrategy: Strategy = { id: Date.now().toString(), text, createdAt: Date.now() };
+        const updated = [newStrategy, ...existing].slice(0, 5); // max 5
+        saveStrategies(updated);
+        addAgentMsg(`📋 Strategy saved! I'll track this for you: "${text.slice(0, 60)}"`);
+        setIsTyping(false);
+        return;
       }
 
       // ── Portfolio guard ──────────────────────────────────────────────────

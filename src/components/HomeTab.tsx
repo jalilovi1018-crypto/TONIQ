@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import { ArrowUpRight, ArrowDownRight, Activity, ArrowUp, Coins, Percent, LayoutGrid, Trash2 } from 'lucide-react';
 import { useTonConnectUI, useTonWallet } from '@tonconnect/ui-react';
 import { fetchWalletBalance, fetchTransactions } from '../services/tonapi';
@@ -12,6 +13,12 @@ type TxList = Awaited<ReturnType<typeof fetchTransactions>>;
 interface PriceAlert {
   symbol: string;
   targetPrice: number;
+  createdAt: number;
+}
+
+interface Strategy {
+  id: string;
+  text: string;
   createdAt: number;
 }
 
@@ -70,7 +77,12 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
     } catch { return []; }
   });
   const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
-  const [showToast, setShowToast] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [strategies, setStrategies] = useState<Strategy[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('toniq_strategies') || '[]');
+    } catch { return []; }
+  });
 
   useEffect(() => {
     fetchStakingAPY().then((d) => setLiveAPY(d.apy));
@@ -94,21 +106,43 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
       setTxList([]);
       return;
     }
-    setLoadingData(true);
+
     const address = wallet.account.address;
-    Promise.all([fetchWalletBalance(address), fetchTransactions(address)])
-      .then(([bal, txs]) => {
-        setBalance(bal);
-        setTxList(txs);
-      })
-      .catch(console.error)
-      .finally(() => setLoadingData(false));
+
+    (async () => {
+      setLoadingData(true);
+      try {
+        const balanceData = await fetchWalletBalance(address);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const txData = await fetchTransactions(address);
+        setBalance(balanceData);
+        setTxList(txData);
+      } catch (err: unknown) {
+        // 429 rate-limit: show empty state silently; log everything else
+        if (!axios.isAxiosError(err) || err.response?.status !== 429) {
+          console.error('Wallet data fetch error:', err);
+        }
+      } finally {
+        setLoadingData(false);
+      }
+    })();
   }, [wallet]);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 2000);
+  };
 
   const deleteAlert = (createdAt: number) => {
     const updated = alerts.filter(a => a.createdAt !== createdAt);
     setAlerts(updated);
     saveAlerts(updated);
+  };
+
+  const deleteStrategy = (id: string) => {
+    const updated = strategies.filter(s => s.id !== id);
+    setStrategies(updated);
+    try { localStorage.setItem('toniq_strategies', JSON.stringify(updated)); } catch { /* ignore */ }
   };
 
   const sharePortfolio = async () => {
@@ -121,8 +155,16 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
       `My TON Portfolio via TONIQ\nBalance: ${tonBal} TON ($${usdBal})\nStaking APY: ${apy}%\nCheck it out: https://toniq-ten.vercel.app`;
     try {
       await navigator.clipboard.writeText(text);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 2000);
+      showToast('📋 Copied to clipboard!');
+    } catch { /* ignore */ }
+  };
+
+  const inviteFriends = async () => {
+    const text =
+      `🤖 Check out TONIQ — the AI DeFi agent on TON blockchain!\n📊 Real-time prices, staking yields, swap quotes and AI analysis.\n👉 Try it free: https://toniq-ten.vercel.app`;
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('📋 Invite link copied!');
     } catch { /* ignore */ }
   };
 
@@ -202,6 +244,11 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
           🔗 Share Portfolio
         </button>
       </div>
+      <button
+        onClick={inviteFriends}
+        className="w-full text-[#6B7280] border border-[rgba(255,255,255,0.08)] rounded-[12px] py-2.5 text-[13px] font-medium transition-all hover:bg-white/[0.04] active:scale-[0.98]">
+        👥 Invite friends to TONIQ
+      </button>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-2.5">
@@ -334,10 +381,40 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
         </div>
       )}
 
+      {/* My Strategies */}
+      {strategies.length > 0 && (
+        <div>
+          <h3 className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-3 px-1 mt-2">My Strategies</h3>
+          <div className="space-y-2">
+            {strategies.map(strategy => (
+              <div
+                key={strategy.id}
+                className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] text-[#E5E7EB] font-medium leading-relaxed">
+                      {strategy.text.length > 60 ? `${strategy.text.slice(0, 60)}…` : strategy.text}
+                    </p>
+                    <p className="text-[11px] text-[#6B7280] mt-1">
+                      {formatTimestamp(Math.floor(strategy.createdAt / 1000))}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => deleteStrategy(strategy.id)}
+                    className="text-[#6B7280] hover:text-[#FF4D4D] transition-colors mt-0.5 shrink-0">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
-      {showToast && (
-        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-[#22C55E] text-white px-4 py-2 rounded-full text-[13px] font-bold z-50">
-          📋 Copied to clipboard!
+      {toastMsg && (
+        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-[#22C55E] text-white px-4 py-2 rounded-full text-[13px] font-bold z-50 whitespace-nowrap">
+          {toastMsg}
         </div>
       )}
     </div>
