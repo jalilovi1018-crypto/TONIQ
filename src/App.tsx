@@ -58,9 +58,24 @@ export default function App() {
           <div className="flex justify-between items-center px-5 py-4 bg-[#0A0A0F] shrink-0 z-20">
             {/* Left: logo + greeting */}
             <div className="flex flex-col leading-none">
-              <span className="font-bold text-white text-[20px] tracking-tight">TONIQ</span>
+              <div className="flex items-center gap-2">
+                <svg width="24" height="24" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+                  <defs>
+                    <linearGradient id="hbg" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#1a8fe0"/>
+                      <stop offset="100%" stopColor="#0055aa"/>
+                    </linearGradient>
+                  </defs>
+                  <circle cx="50" cy="50" r="50" fill="url(#hbg)"/>
+                  <polygon points="50,18 69,32 50,36 31,32" fill="white" stroke="#1472c4" strokeWidth="1.5"/>
+                  <polygon points="69,32 50,36 59,74 80,53" fill="rgba(255,255,255,0.85)" stroke="#1472c4" strokeWidth="1.5"/>
+                  <polygon points="31,32 50,36 41,74 20,53" fill="rgba(255,255,255,0.7)" stroke="#1472c4" strokeWidth="1.5"/>
+                  <polygon points="41,74 50,36 59,74 50,81" fill="rgba(255,255,255,0.6)" stroke="#1472c4" strokeWidth="1.5"/>
+                </svg>
+                <span className="font-bold text-white text-[20px] tracking-tight">TONIQ</span>
+              </div>
               {displayName && (
-                <span className="text-[11px] text-[#6B7280] font-medium mt-0.5">
+                <span className="text-[11px] text-[#6B7280] font-medium mt-0.5 pl-8">
                   Hey, {displayName} 👋
                 </span>
               )}
