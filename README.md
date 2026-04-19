@@ -1,47 +1,61 @@
-# TONIQ — AI-Powered DeFi Agent on TON
+# TONIQ — AI-powered DeFi Agent on TON
 
-> Your AI-powered DeFi agent on TON — portfolio tracking, swap quotes, staking yields, and smart strategies in one chat.
+> One AI agent for everything DeFi on TON — live prices, swap quotes, staking yields, portfolio tracking, and smart strategies in plain English.
 
-## 🚀 Live Demo
-[toniq-ten.vercel.app](https://toniq-ten.vercel.app)
+## What is TONIQ
 
-## 🎯 What is TONIQ?
-TONIQ is a mobile-first AI agent that helps TON users navigate DeFi without complexity. It tracks token prices, calculates staking yields, simulates swaps, and answers any DeFi question in plain English.
+TON DeFi is fragmented across a dozen apps — you need one tab for prices, another for swaps, another for staking, and a spreadsheet to track your portfolio. TONIQ solves this by putting everything behind a single AI chat interface. Ask "swap 10 TON to USDT", "what's my staking yield?", or "give me a DeFi briefing" — the agent pulls live on-chain data and answers instantly, with one-tap execute buttons that route directly to STON.fi or Tonstakers.
 
-## ✨ Features
-- **AI Agent** — Powered by Claude AI, answers DeFi questions with real live data
-- **Market Overview** — Real-time token prices from STON.fi API
-- **Portfolio Tracker** — Connect wallet via TON Connect, see real balances
-- **Staking Calculator** — Live APY from Tonstakers, calculate yearly yields
-- **Swap Simulation** — Get swap quotes powered by STON.fi price data
-- **Transaction History** — Last 10 transactions from connected wallet
+## Features
 
-## 🔧 Tech Stack
-- React + TypeScript + Vite
-- Tailwind CSS
-- TON Connect (wallet integration)
-- STON.fi API (token prices, pools)
-- Tonstakers SDK (staking APY)
-- TonAPI (wallet balances, transactions)
-- Claude AI / Anthropic API (AI agent)
+- **🏠 Home** — Portfolio overview with live wallet balance and jetton holdings, DeFi Briefing shortcut, Share Portfolio, Active Price Alerts with progress bars, My Strategies
+- **📈 Market** — Live token prices from STON.fi, Watchlist with star/unstar, Trending tokens, Gainers & Losers sections, full-text search
+- **🤖 TONIQ Chat** — AI agent powered by Claude with live market data; handles swap quotes (routed via STON.fi), price alert creation, strategy builder, portfolio analysis, multi-chat history
+- **💰 Earn** — Tonstakers staking APY (live), compound growth calculator (1/3/6/12 months), Liquidity Pools via STON.fi API
 
-## 🏆 Hackathon
-Built for **STON.fi Vibe Coding Hackathon** (April 16–20, 2026)
-- STON.fi Track: STON.fi API + Omniston SDK
-- Tonstakers Track: Tonstakers APY integration
+## Tech Stack
 
-## 🛠 Run Locally
+| Layer | Technology |
+|---|---|
+| Frontend | Vite + React 19 + TypeScript + Tailwind CSS v4 |
+| AI Agent | Claude Haiku (Anthropic API) |
+| Token Prices & Pools | STON.fi API (`api.ston.fi/v1`) |
+| Swap Routing | Omniston SDK |
+| Staking | Tonstakers SDK |
+| Wallet Auth | TON Connect UI React |
+| On-chain Data | TonAPI v2 (balances, jettons, transactions) |
+| Deployment | Vercel |
+| PWA | Web App Manifest + Apple PWA meta tags |
+
+## AI Tools Used
+
+- **Claude (Anthropic)** — AI agent intelligence + coding assistant (Claude Code)
+- **Google AI Studio (Gemini)** — initial UI scaffolding
+- **Google Antigravity** — code editor
+
+## Quick Start
+
 ```bash
+git clone https://github.com/jalilovi1018-crypto/TONIQ
+cd toniq
 npm install
+cp .env.example .env
+# Add your API keys to .env
 npm run dev
 ```
 
-Add `.env`:
-```
-VITE_ANTHROPIC_API_KEY=your_key
+## Environment Variables
+
+```env
+VITE_ANTHROPIC_API_KEY=      # Anthropic Claude API key
+VITE_TONAPI_KEY=             # TonAPI key (optional — rate-limited without it)
 ```
 
-## 🤖 AI Tools Used
-- Google AI Studio (Gemini) — UI scaffold generation
-- Claude Code — integrations and debugging
-- Cursor — code editing
+## Live Demo
+
+**[toniq-ten.vercel.app](https://toniq-ten.vercel.app)**
+
+## Hackathon
+
+Built for the **STON.fi Vibe Coding Hackathon**, April 16–20, 2026.
+Submitted to both the **STON.fi track** (STON.fi API + Omniston SDK) and the **Tonstakers track** (live staking APY + compound calculator).
