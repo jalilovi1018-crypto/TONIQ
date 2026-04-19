@@ -9,7 +9,7 @@ export default function BottomNav({ activeTab, setActiveTab }: { activeTab: stri
   ];
 
   return (
-    <div className="absolute bottom-0 w-full bg-[#0A0A0F] border-t border-[rgba(255,255,255,0.08)] px-2 pb-5 pt-3 flex justify-around items-center z-50 h-[72px]">
+    <div className="absolute bottom-0 w-full bg-[#0A0A0F]/80 backdrop-blur-xl border-t border-[rgba(255,255,255,0.06)] px-2 pb-5 pt-3 flex justify-around items-center z-50 h-[72px]">
       {navItems.map((item) => {
         const isActive = activeTab === item.id;
         return (

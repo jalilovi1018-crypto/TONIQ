@@ -231,9 +231,7 @@ export default function HomeTab({ onDeFiBriefing }: HomeTabProps) {
       {/* ── PORTFOLIO (merged: total value + token breakdown) ── */}
       <div>
         <h3 className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-3 px-1 mt-2">Portfolio</h3>
-        <div
-          className="bg-gradient-to-br from-[#0D1B3E] to-[#1A1A2E] border border-[#0180FF]/20 rounded-[16px] overflow-hidden divide-y divide-[rgba(255,255,255,0.06)]"
-          style={{ boxShadow: '0 0 30px rgba(1,128,255,0.08)' }}>
+        <div className="glass-card portfolio-glow border border-[#0180FF]/20 rounded-[16px] overflow-hidden divide-y divide-[rgba(255,255,255,0.06)]">
 
           {/* Total value header */}
           <div className="px-4 py-4">

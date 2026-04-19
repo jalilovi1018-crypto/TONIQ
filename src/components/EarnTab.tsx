@@ -88,7 +88,9 @@ export default function EarnTab() {
       {/* Staking Section */}
       <div>
         <h2 className="text-[11px] font-bold text-[#6B7280] mb-3 uppercase tracking-widest">Staking</h2>
-        <div className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4">
+        <div
+          className="bg-gradient-to-br from-[#0D1B3E] to-[#1A1A2E] border border-[#0180FF]/20 rounded-[16px] p-4"
+          style={{ boxShadow: '0 0 30px rgba(1,128,255,0.08)' }}>
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-center space-x-4">
               <div className="w-10 h-10 bg-[#0180FF] rounded-[10px] flex items-center justify-center font-bold text-[14px] text-white tracking-tighter">
@@ -106,7 +108,7 @@ export default function EarnTab() {
                   <SkeletonLine width="w-14" height="h-6" />
                 </div>
               ) : (
-                <p className="font-bold text-[#3DB1FF] text-[18px] leading-none">{apy.toFixed(1)}%</p>
+                <p className="font-black text-[#3DB1FF] text-[22px] leading-none">{apy.toFixed(1)}%</p>
               )}
             </div>
           </div>

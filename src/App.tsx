@@ -49,7 +49,10 @@ export default function App() {
         <div className="w-full h-[100dvh] sm:h-[844px] sm:max-w-[390px] relative flex flex-col bg-[#0A0A0F] overflow-hidden sm:rounded-[40px] sm:border-[8px] sm:border-bg-surface sm:shadow-[0_0_50px_rgba(0,0,0,0.5)]">
 
           {/* BRAND ACCENT LINE */}
-          <div className="w-full h-[2px] bg-gradient-to-r from-[#0180FF] to-[#7354F2] shrink-0" />
+          <div
+            className="w-full h-[3px] bg-gradient-to-r from-[#0180FF] via-[#3DB1FF] to-[#7354F2] shrink-0"
+            style={{ boxShadow: '0 0 20px rgba(1,128,255,0.4)' }}
+          />
 
           {/* UNIFIED HEADER */}
           <div className="flex justify-between items-center px-5 py-4 bg-[#0A0A0F] shrink-0 z-20">

@@ -1,4 +1,4 @@
-import { Search, Circle, Star } from 'lucide-react';
+import { Search, Star } from 'lucide-react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import TokenDetail, { symbolHashValue } from './TokenDetail';
 import { fetchTopTokens, Token } from '../services/stonfi';
@@ -6,6 +6,11 @@ import { SkeletonLine } from './Skeleton';
 import { useCurrency, formatTokenPrice } from '../context/CurrencyContext';
 
 const STABLECOINS = new Set(['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDE']);
+
+const AVATAR_COLORS = [
+  '#0180FF', '#7354F2', '#00D395', '#FF4D4D', '#FFB800',
+  '#3DB1FF', '#FF6B35', '#A855F7', '#10B981', '#F59E0B',
+];
 
 const Sparkline = ({ isPositive }: { isPositive: boolean }) => {
   const color = isPositive ? '#00D395' : '#FF4D4D';
@@ -139,10 +144,9 @@ export default function MarketTab() {
 
   return (
     <div className="p-5 flex flex-col h-full">
-      <h1 className="text-[24px] font-bold text-white mb-4 leading-none">Market</h1>
 
       {/* Search */}
-      <div className="relative mb-4">
+      <div className="relative mb-4 pt-2">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           <Search size={18} className="text-[#6B7280]" />
         </div>
@@ -166,10 +170,12 @@ export default function MarketTab() {
                 type="button"
                 onClick={() => setSelectedToken(token)}
                 className="flex-shrink-0 bg-[#1A1A2E] border border-[#FFB800]/30 rounded-full px-3 py-1.5 flex items-center gap-2 active:scale-95 transition-transform hover:border-[#FFB800]/60">
-                <div className="w-5 h-5 rounded-full overflow-hidden bg-[#374151] flex items-center justify-center flex-shrink-0">
+                <div
+                  className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+                  style={{ background: token.image_url ? undefined : AVATAR_COLORS[symbolHashValue(token.symbol) % AVATAR_COLORS.length] }}>
                   {token.image_url
                     ? <img src={token.image_url} alt={token.symbol} className="w-full h-full object-cover" />
-                    : <Circle size={12} strokeWidth={2} className="text-[#6B7280]" />}
+                    : <span className="text-white text-[7px] font-bold">{token.symbol.slice(0, 2)}</span>}
                 </div>
                 <span className="text-[13px] font-bold text-[#E5E7EB]">{token.symbol}</span>
                 <span className="text-[12px] font-bold text-[#FFB800]">{price(token.dex_price_usd)}</span>
@@ -190,10 +196,12 @@ export default function MarketTab() {
                 type="button"
                 onClick={() => setSelectedToken(token)}
                 className="flex-shrink-0 bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-full px-3 py-1.5 flex items-center gap-2 active:scale-95 transition-transform hover:border-[#0180FF]/40">
-                <div className="w-5 h-5 rounded-full overflow-hidden bg-[#374151] flex items-center justify-center flex-shrink-0">
+                <div
+                  className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+                  style={{ background: token.image_url ? undefined : AVATAR_COLORS[symbolHashValue(token.symbol) % AVATAR_COLORS.length] }}>
                   {token.image_url
                     ? <img src={token.image_url} alt={token.symbol} className="w-full h-full object-cover" />
-                    : <Circle size={12} strokeWidth={2} className="text-[#6B7280]" />}
+                    : <span className="text-white text-[7px] font-bold">{token.symbol.slice(0, 2)}</span>}
                 </div>
                 <span className="text-[13px] font-bold text-[#E5E7EB]">{token.symbol}</span>
                 <span className="text-[12px] text-[#6B7280]">{price(token.dex_price_usd)}</span>
@@ -297,10 +305,12 @@ export default function MarketTab() {
                 >
                   {/* Left: avatar + name */}
                   <div className="flex items-center space-x-4">
-                    <div className="w-[40px] h-[40px] rounded-full flex items-center justify-center font-bold text-[13px] bg-[#374151] text-white overflow-hidden shrink-0">
+                    <div
+                      className="w-[40px] h-[40px] rounded-full flex items-center justify-center font-bold text-[13px] text-white overflow-hidden shrink-0"
+                      style={{ background: token.image_url ? undefined : AVATAR_COLORS[symbolHashValue(token.symbol) % AVATAR_COLORS.length] }}>
                       {token.image_url
                         ? <img src={token.image_url} alt={token.symbol} className="w-full h-full object-cover rounded-full" />
-                        : <Circle size={20} strokeWidth={2.5} />}
+                        : token.symbol.slice(0, 2)}
                     </div>
                     <div>
                       <h3 className="font-bold text-[14px] text-[#E5E7EB]">{token.symbol}</h3>

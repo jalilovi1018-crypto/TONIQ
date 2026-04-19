@@ -464,7 +464,7 @@ export default function AgentTab({ initialMessage, onClearInitialMessage }: Agen
       </div>
 
       {/* ── Messages ── */}
-      <div className="flex-1 p-5 space-y-4">
+      <div className="flex-1 p-5 space-y-4" style={{ background: 'radial-gradient(ellipse at top, rgba(1,128,255,0.03) 0%, transparent 70%)' }}>
         {messages.map((msg) => (
           <div key={msg.id} className={`flex w-full ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] p-4 text-[14px] text-[#E5E7EB] leading-relaxed ${

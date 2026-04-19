@@ -38,3 +38,20 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* Animated portfolio card border glow */
+@keyframes borderGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(1,128,255,0.10), 0 0 40px rgba(1,128,255,0.05); }
+  50%       { box-shadow: 0 0 30px rgba(1,128,255,0.20), 0 0 60px rgba(1,128,255,0.10); }
+}
+
+.portfolio-glow {
+  animation: borderGlow 3s ease-in-out infinite;
+}
+
+/* Glass card utility */
+.glass-card {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: linear-gradient(135deg, rgba(13,27,62,0.85) 0%, rgba(26,26,46,0.85) 100%);
+}
