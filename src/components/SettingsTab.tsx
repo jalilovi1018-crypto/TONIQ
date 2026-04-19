@@ -28,7 +28,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export default function SettingsTab({ onClose }: SettingsTabProps) {
   const [displayName, setDisplayName] = useState(
-    () => localStorage.getItem('toniq_display_name') || ''
+    () => localStorage.getItem('toniq_username') || ''
   );
   const [notifications, setNotifications] = useState(
     () => localStorage.getItem('toniq_notifications') !== 'false'
@@ -39,7 +39,7 @@ export default function SettingsTab({ onClose }: SettingsTabProps) {
 
   const updateDisplayName = (v: string) => {
     setDisplayName(v);
-    localStorage.setItem('toniq_display_name', v);
+    localStorage.setItem('toniq_username', v);
   };
   const updateNotifications = (v: boolean) => {
     setNotifications(v);

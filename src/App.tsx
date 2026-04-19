@@ -14,7 +14,7 @@ export default function App() {
   const [initialAgentMessage, setInitialAgentMessage] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [displayName, setDisplayName] = useState(
-    () => localStorage.getItem('toniq_display_name') || ''
+    () => localStorage.getItem('toniq_username') || ''
   );
   const [tonPrice, setTonPrice] = useState<string>('');
   const contentRef = useRef<HTMLDivElement>(null);
@@ -39,7 +39,7 @@ export default function App() {
 
   // Re-read display name from localStorage when settings closes
   const handleCloseSettings = () => {
-    setDisplayName(localStorage.getItem('toniq_display_name') || '');
+    setDisplayName(localStorage.getItem('toniq_username') || '');
     setShowSettings(false);
   };
 
