@@ -34,13 +34,23 @@ export default function MarketTab() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [watchlist, setWatchlist] = useState<string[]>(
-    () => JSON.parse(localStorage.getItem('toniq_watchlist') || '[]')
+    () => {
+      try {
+        return JSON.parse(localStorage.getItem('toniq_watchlist') || '[]');
+      } catch {
+        return [];
+      }
+    }
   );
 
-  const toggleWatchlist = (symbol: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  // Keep watchlist symbols in a Set for O(1) lookup
+  const watchlistSet = useMemo(() => new Set(watchlist), [watchlist]);
+
+  const toggleWatchlist = (symbol: string) => {
     setWatchlist(prev => {
-      const next = prev.includes(symbol) ? prev.filter(s => s !== symbol) : [...prev, symbol];
+      const next = prev.includes(symbol)
+        ? prev.filter(s => s !== symbol)
+        : [...prev, symbol];
       localStorage.setItem('toniq_watchlist', JSON.stringify(next));
       return next;
     });
@@ -61,6 +71,12 @@ export default function MarketTab() {
       .slice(0, 3);
   }, [tokens]);
 
+  // Watchlisted tokens that are currently loaded
+  const watchlistedTokens = useMemo(
+    () => tokens.filter(t => watchlistSet.has(t.symbol)),
+    [tokens, watchlistSet]
+  );
+
   useEffect(() => {
     (async () => {
       const [data] = await Promise.all([
@@ -75,6 +91,17 @@ export default function MarketTab() {
   if (selectedToken) {
     return <TokenDetail token={selectedToken} onBack={() => setSelectedToken(null)} />;
   }
+
+  const formatPrice = (raw: string) => {
+    const n = parseFloat(raw);
+    if (!Number.isFinite(n)) return raw;
+    return n < 0.01 ? `$${n.toFixed(6)}` : `$${n.toFixed(2)}`;
+  };
+
+  const filteredTokens = tokens.filter((t) => {
+    const q = searchQuery.toLowerCase();
+    return !q || t.symbol.toLowerCase().includes(q) || t.display_name.toLowerCase().includes(q);
+  });
 
   return (
     <div className="p-5 flex flex-col h-full">
@@ -94,33 +121,28 @@ export default function MarketTab() {
         />
       </div>
 
-      {/* ⭐ Watchlist */}
-      {!loading && watchlist.length > 0 && (
+      {/* ⭐ Watchlist chips */}
+      {!loading && watchlistedTokens.length > 0 && (
         <div className="mb-5">
-          <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-2 px-1">⭐ Watchlist</p>
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {tokens
-              .filter(t => watchlist.includes(t.symbol))
-              .map(token => {
-                const priceNum = parseFloat(token.dex_price_usd);
-                const priceDisplay = Number.isFinite(priceNum)
-                  ? priceNum < 0.01 ? `$${priceNum.toFixed(6)}` : `$${priceNum.toFixed(2)}`
-                  : token.dex_price_usd;
-                return (
-                  <button
-                    key={token.symbol}
-                    onClick={() => setSelectedToken(token)}
-                    className="flex-shrink-0 bg-[#1A1A2E] border border-[#0180FF]/30 rounded-full px-3 py-1.5 flex items-center gap-2 active:scale-95 transition-transform hover:border-[#0180FF]/60">
-                    <div className="w-5 h-5 rounded-full overflow-hidden bg-[#374151] flex items-center justify-center flex-shrink-0">
-                      {token.image_url
-                        ? <img src={token.image_url} alt={token.symbol} className="w-full h-full object-cover" />
-                        : <Circle size={12} strokeWidth={2} className="text-[#6B7280]" />}
-                    </div>
-                    <span className="text-[13px] font-bold text-[#E5E7EB]">{token.symbol}</span>
-                    <span className="text-[12px] text-[#6B7280]">{priceDisplay}</span>
-                  </button>
-                );
-              })}
+          <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-2 px-1">
+            ⭐ Watchlist
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {watchlistedTokens.map(token => (
+              <button
+                key={token.symbol}
+                type="button"
+                onClick={() => setSelectedToken(token)}
+                className="flex-shrink-0 bg-[#1A1A2E] border border-[#FFB800]/30 rounded-full px-3 py-1.5 flex items-center gap-2 active:scale-95 transition-transform hover:border-[#FFB800]/60">
+                <div className="w-5 h-5 rounded-full overflow-hidden bg-[#374151] flex items-center justify-center flex-shrink-0">
+                  {token.image_url
+                    ? <img src={token.image_url} alt={token.symbol} className="w-full h-full object-cover" />
+                    : <Circle size={12} strokeWidth={2} className="text-[#6B7280]" />}
+                </div>
+                <span className="text-[13px] font-bold text-[#E5E7EB]">{token.symbol}</span>
+                <span className="text-[12px] text-[#FFB800]">{formatPrice(token.dex_price_usd)}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -129,30 +151,22 @@ export default function MarketTab() {
       {!loading && trending.length > 0 && (
         <div className="mb-5">
           <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-2 px-1">🔥 Trending</p>
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            {trending.map((token) => {
-              const priceNum = parseFloat(token.dex_price_usd);
-              const priceDisplay = Number.isFinite(priceNum)
-                ? priceNum < 0.01
-                  ? `$${priceNum.toFixed(6)}`
-                  : `$${priceNum.toFixed(2)}`
-                : token.dex_price_usd;
-
-              return (
-                <button
-                  key={token.symbol}
-                  onClick={() => setSelectedToken(token)}
-                  className="flex-shrink-0 bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-full px-3 py-1.5 flex items-center gap-2 active:scale-95 transition-transform hover:border-[#0180FF]/40">
-                  <div className="w-5 h-5 rounded-full overflow-hidden bg-[#374151] flex items-center justify-center flex-shrink-0">
-                    {token.image_url
-                      ? <img src={token.image_url} alt={token.symbol} className="w-full h-full object-cover" />
-                      : <Circle size={12} strokeWidth={2} className="text-[#6B7280]" />}
-                  </div>
-                  <span className="text-[13px] font-bold text-[#E5E7EB]">{token.symbol}</span>
-                  <span className="text-[12px] text-[#6B7280]">{priceDisplay}</span>
-                </button>
-              );
-            })}
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {trending.map((token) => (
+              <button
+                key={token.symbol}
+                type="button"
+                onClick={() => setSelectedToken(token)}
+                className="flex-shrink-0 bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-full px-3 py-1.5 flex items-center gap-2 active:scale-95 transition-transform hover:border-[#0180FF]/40">
+                <div className="w-5 h-5 rounded-full overflow-hidden bg-[#374151] flex items-center justify-center flex-shrink-0">
+                  {token.image_url
+                    ? <img src={token.image_url} alt={token.symbol} className="w-full h-full object-cover" />
+                    : <Circle size={12} strokeWidth={2} className="text-[#6B7280]" />}
+                </div>
+                <span className="text-[13px] font-bold text-[#E5E7EB]">{token.symbol}</span>
+                <span className="text-[12px] text-[#6B7280]">{formatPrice(token.dex_price_usd)}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -170,7 +184,6 @@ export default function MarketTab() {
               <div
                 key={i}
                 className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] px-4 py-5 flex items-center justify-between animate-pulse">
-                {/* Left: avatar + two lines */}
                 <div className="flex items-center space-x-4">
                   <div className="w-[40px] h-[40px] rounded-full bg-[#2A2A3E] shrink-0" />
                   <div className="space-y-2">
@@ -178,7 +191,6 @@ export default function MarketTab() {
                     <SkeletonLine width="w-20" height="h-3" />
                   </div>
                 </div>
-                {/* Right: sparkline + price lines */}
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-6 bg-[#2A2A3E] rounded-[6px]" />
                   <div className="flex flex-col items-end space-y-2 w-[72px]">
@@ -191,36 +203,22 @@ export default function MarketTab() {
           </div>
         ) : (
           <div className="space-y-[20px]">
-            {tokens
-              .filter((t) => {
-                const q = searchQuery.toLowerCase();
-                return !q || t.symbol.toLowerCase().includes(q) || t.display_name.toLowerCase().includes(q);
-              })
-              .length === 0 && (
+            {filteredTokens.length === 0 && (
               <p className="text-[#6B7280] text-[14px] text-center mt-8">No tokens found</p>
             )}
-            {tokens
-              .filter((t) => {
-                const q = searchQuery.toLowerCase();
-                return !q || t.symbol.toLowerCase().includes(q) || t.display_name.toLowerCase().includes(q);
-              })
-              .map((token, index) => {
+            {filteredTokens.map((token, index) => {
               const isPositive = sparklineDirection[token.symbol] ?? true;
-              const priceNum = parseFloat(token.dex_price_usd);
-              const priceDisplay = Number.isFinite(priceNum)
-                ? priceNum < 0.01
-                  ? `$${priceNum.toFixed(6)}`
-                  : `$${priceNum.toFixed(2)}`
-                : token.dex_price_usd;
+              const isStarred = watchlistSet.has(token.symbol);
 
               return (
                 <div
                   key={index}
-                  className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] px-4 py-5 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors"
+                  className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] px-4 py-4 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors"
                   onClick={() => setSelectedToken(token)}
                 >
+                  {/* Left: avatar + name */}
                   <div className="flex items-center space-x-4">
-                    <div className="w-[40px] h-[40px] rounded-full flex items-center justify-center font-bold text-[13px] bg-[#374151] text-white overflow-hidden">
+                    <div className="w-[40px] h-[40px] rounded-full flex items-center justify-center font-bold text-[13px] bg-[#374151] text-white overflow-hidden shrink-0">
                       {token.image_url
                         ? <img src={token.image_url} alt={token.symbol} className="w-full h-full object-cover rounded-full" />
                         : <Circle size={20} strokeWidth={2.5} />}
@@ -231,12 +229,14 @@ export default function MarketTab() {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-3">
-                    <div>
-                      <Sparkline isPositive={isPositive} />
-                    </div>
+                  {/* Right: sparkline + price + star */}
+                  <div className="flex items-center gap-2">
+                    <Sparkline isPositive={isPositive} />
+
                     <div className="text-right w-[72px] flex flex-col items-end">
-                      <p className="font-bold text-[14px] text-[#E5E7EB] tracking-wide">{priceDisplay}</p>
+                      <p className="font-bold text-[14px] text-[#E5E7EB] tracking-wide">
+                        {formatPrice(token.dex_price_usd)}
+                      </p>
                       {token.change === 'N/A' ? (
                         <div className="mt-1 inline-flex items-center justify-center px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold tracking-widest bg-[#374151] text-[#6B7280]">
                           N/A
@@ -247,14 +247,26 @@ export default function MarketTab() {
                         </div>
                       )}
                     </div>
+
+                    {/* Star / watchlist toggle — stopPropagation prevents row navigation */}
                     <button
-                      onClick={(e) => toggleWatchlist(token.symbol, e)}
-                      className="w-7 h-7 flex items-center justify-center rounded-full transition-colors active:scale-90 shrink-0">
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleWatchlist(token.symbol);
+                      }}
+                      className={`p-2 rounded-full transition-colors active:scale-90 shrink-0 ${
+                        isStarred
+                          ? 'text-[#FFB800]'
+                          : 'text-[#374151] hover:text-[#FFB800]'
+                      }`}
+                      aria-label={isStarred ? 'Remove from watchlist' : 'Add to watchlist'}
+                    >
                       <Star
-                        size={16}
-                        className={watchlist.includes(token.symbol) ? 'text-[#EAB308]' : 'text-[#374151]'}
-                        fill={watchlist.includes(token.symbol) ? '#EAB308' : 'none'}
+                        size={18}
                         strokeWidth={2}
+                        className={isStarred ? 'fill-[#FFB800]' : 'fill-none'}
                       />
                     </button>
                   </div>
