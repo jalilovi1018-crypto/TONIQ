@@ -1,4 +1,4 @@
-import { Search, Circle } from 'lucide-react';
+import { Search, Circle, Star } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import TokenDetail, { symbolHashValue } from './TokenDetail';
 import { fetchTopTokens, Token } from '../services/stonfi';
@@ -33,6 +33,18 @@ export default function MarketTab() {
   const [tokens, setTokens] = useState<DisplayToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [watchlist, setWatchlist] = useState<string[]>(
+    () => JSON.parse(localStorage.getItem('toniq_watchlist') || '[]')
+  );
+
+  const toggleWatchlist = (symbol: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setWatchlist(prev => {
+      const next = prev.includes(symbol) ? prev.filter(s => s !== symbol) : [...prev, symbol];
+      localStorage.setItem('toniq_watchlist', JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Sparkline direction: uses same hash as TokenDetail chart so they always agree
   const sparklineDirection = useMemo(() => {
@@ -81,6 +93,37 @@ export default function MarketTab() {
           placeholder="Search tokens..."
         />
       </div>
+
+      {/* ⭐ Watchlist */}
+      {!loading && watchlist.length > 0 && (
+        <div className="mb-5">
+          <p className="text-[11px] text-[#6B7280] uppercase tracking-widest font-semibold mb-2 px-1">⭐ Watchlist</p>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            {tokens
+              .filter(t => watchlist.includes(t.symbol))
+              .map(token => {
+                const priceNum = parseFloat(token.dex_price_usd);
+                const priceDisplay = Number.isFinite(priceNum)
+                  ? priceNum < 0.01 ? `$${priceNum.toFixed(6)}` : `$${priceNum.toFixed(2)}`
+                  : token.dex_price_usd;
+                return (
+                  <button
+                    key={token.symbol}
+                    onClick={() => setSelectedToken(token)}
+                    className="flex-shrink-0 bg-[#1A1A2E] border border-[#0180FF]/30 rounded-full px-3 py-1.5 flex items-center gap-2 active:scale-95 transition-transform hover:border-[#0180FF]/60">
+                    <div className="w-5 h-5 rounded-full overflow-hidden bg-[#374151] flex items-center justify-center flex-shrink-0">
+                      {token.image_url
+                        ? <img src={token.image_url} alt={token.symbol} className="w-full h-full object-cover" />
+                        : <Circle size={12} strokeWidth={2} className="text-[#6B7280]" />}
+                    </div>
+                    <span className="text-[13px] font-bold text-[#E5E7EB]">{token.symbol}</span>
+                    <span className="text-[12px] text-[#6B7280]">{priceDisplay}</span>
+                  </button>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
       {/* 🔥 Trending */}
       {!loading && trending.length > 0 && (
@@ -188,7 +231,7 @@ export default function MarketTab() {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
                     <div>
                       <Sparkline isPositive={isPositive} />
                     </div>
@@ -204,6 +247,16 @@ export default function MarketTab() {
                         </div>
                       )}
                     </div>
+                    <button
+                      onClick={(e) => toggleWatchlist(token.symbol, e)}
+                      className="w-7 h-7 flex items-center justify-center rounded-full transition-colors active:scale-90 shrink-0">
+                      <Star
+                        size={16}
+                        className={watchlist.includes(token.symbol) ? 'text-[#EAB308]' : 'text-[#374151]'}
+                        fill={watchlist.includes(token.symbol) ? '#EAB308' : 'none'}
+                        strokeWidth={2}
+                      />
+                    </button>
                   </div>
                 </div>
               );
