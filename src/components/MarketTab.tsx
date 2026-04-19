@@ -1,6 +1,6 @@
 import { Search, Circle } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import TokenDetail from './TokenDetail';
+import TokenDetail, { symbolHashValue } from './TokenDetail';
 import { fetchTopTokens, Token } from '../services/stonfi';
 import { SkeletonLine } from './Skeleton';
 
@@ -34,13 +34,10 @@ export default function MarketTab() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Stable pseudo-random positive/negative per token derived from symbol chars
+  // Sparkline direction: uses same hash as TokenDetail chart so they always agree
   const sparklineDirection = useMemo(() => {
     const map: Record<string, boolean> = {};
-    tokens.forEach((t) => {
-      const hash = t.symbol.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-      map[t.symbol] = hash % 2 === 0;
-    });
+    tokens.forEach((t) => { map[t.symbol] = symbolHashValue(t.symbol) % 2 === 0; });
     return map;
   }, [tokens]);
 
