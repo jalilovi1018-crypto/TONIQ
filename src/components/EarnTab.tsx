@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { ArrowUpRight } from 'lucide-react';
 import { fetchStakingAPY } from '../services/tonstakers';
 import { SkeletonLine } from './Skeleton';
 
@@ -176,13 +177,24 @@ export default function EarnTab() {
 
       {/* Liquidity Pools Section */}
       <div>
-        <h2 className="text-[11px] font-bold text-[#6B7280] mb-3 uppercase tracking-widest">Liquidity Pools</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-[11px] font-bold text-[#6B7280] uppercase tracking-widest">Liquidity Pools</h2>
+          <button
+            onClick={() => window.open('https://app.ston.fi', '_blank')}
+            className="flex items-center gap-1 text-[11px] text-[#6B7280] hover:text-[#3DB1FF] transition-colors">
+            Powered by STON.fi
+            <ArrowUpRight size={11} />
+          </button>
+        </div>
         {poolsLoading ? (
           <p className="text-[#6B7280] text-[14px] text-center py-4">Loading pools...</p>
         ) : (
         <div className="space-y-2.5">
           {pools.map((pool, i) => (
-            <div key={i} className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors h-[72px]">
+            <div
+              key={i}
+              onClick={() => window.open('https://app.ston.fi/pools', '_blank')}
+              className="bg-[#1A1A2E] border border-[rgba(255,255,255,0.08)] rounded-[16px] p-4 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors h-[72px]">
               <div className="flex items-center space-x-3">
                 <div className="flex -space-x-2">
                   <div className={`w-8 h-8 rounded-full ${pool.color1} border-2 border-[#1A1A2E] z-10 flex items-center justify-center text-white text-[10px] font-bold tracking-tighter`}>
@@ -194,9 +206,12 @@ export default function EarnTab() {
                 </div>
                 <h3 className="font-bold text-[14px] text-[#E5E7EB] tracking-wide">{pool.pair}</h3>
               </div>
-              <div className="flex flex-col text-right">
-                <span className="font-bold text-[#00D395] text-[14px] tracking-wide">{pool.apy}</span>
-                <span className="text-[11px] text-[#6B7280] font-bold uppercase tracking-widest mt-0.5">TVL {pool.tvl}</span>
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col text-right">
+                  <span className="font-bold text-[#00D395] text-[14px] tracking-wide">{pool.apy}</span>
+                  <span className="text-[11px] text-[#6B7280] font-bold uppercase tracking-widest mt-0.5">TVL {pool.tvl}</span>
+                </div>
+                <ArrowUpRight size={16} className="text-[#6B7280] shrink-0" />
               </div>
             </div>
           ))}
