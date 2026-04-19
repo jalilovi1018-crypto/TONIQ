@@ -10,7 +10,7 @@ import { CurrencyProvider } from './context/CurrencyContext';
 import { fetchTopTokens } from './services/stonfi';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('toniq');
+  const [activeTab, setActiveTab] = useState('home');
   const [initialAgentMessage, setInitialAgentMessage] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [displayName, setDisplayName] = useState(

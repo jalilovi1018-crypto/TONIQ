@@ -93,8 +93,17 @@ export default function EarnTab() {
           style={{ boxShadow: '0 0 30px rgba(1,128,255,0.08)' }}>
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-[#0180FF] rounded-[10px] flex items-center justify-center font-bold text-[14px] text-white tracking-tighter">
-                ts
+              <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center p-1 shrink-0">
+                <img
+                  src="https://app.tonstakers.com/favicon.ico"
+                  alt="Tonstakers"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const wrapper = e.currentTarget.parentElement!;
+                    wrapper.style.background = '#0098EA';
+                    wrapper.innerHTML = '<span style="color:white;font-weight:700;font-size:14px;letter-spacing:-0.05em">ts</span>';
+                  }}
+                />
               </div>
               <div>
                 <h3 className="font-bold text-[14px] text-[#E5E7EB] leading-none">tsTON</h3>
